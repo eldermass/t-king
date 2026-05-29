@@ -490,25 +490,25 @@ td input:focus {
 
 .dip-section th,
 .dip-section td {
-  font-size: 0.8rem;
+  font-size: 0.9rem;
 }
 
 .dip-section th {
-  font-size: 0.72rem;
+  font-size: 0.8rem;
 }
 
 .dip-section td input {
-  font-size: 0.78rem;
-  padding: 7px 8px;
+  font-size: 0.88rem;
+  padding: 8px 9px;
 }
 
 .dip-section .inline-field span {
-  font-size: 0.76rem;
+  font-size: 0.82rem;
 }
 
 .dip-section .mini-btn,
 .dip-section .icon-btn {
-  font-size: 0.78rem;
+  font-size: 0.84rem;
 }
 
 .info-section {
@@ -581,11 +581,11 @@ td input:focus {
   }
 
   35% {
-    transform: translateY(-5px) scale(1.06);
+    transform: translateY(-6px) scale(1.1);
   }
 
   60% {
-    transform: translateY(1px) scale(0.98);
+    transform: translateY(1px) scale(0.97);
   }
 }
 
@@ -596,11 +596,11 @@ td input:focus {
   }
 
   30% {
-    transform: translateY(-6px) scale(1.08);
+    transform: translateY(-7px) scale(1.12);
   }
 
   58% {
-    transform: translateY(2px) scale(0.97);
+    transform: translateY(2px) scale(0.96);
   }
 }
 
@@ -611,11 +611,11 @@ td input:focus {
   }
 
   28% {
-    transform: translateY(-8px) scale(1.1);
+    transform: translateY(-9px) scale(1.15);
   }
 
   56% {
-    transform: translateY(3px) scale(0.96);
+    transform: translateY(3px) scale(0.95);
   }
 }
 
@@ -626,15 +626,15 @@ td input:focus {
   }
 
   24% {
-    transform: translateY(-10px) scale(1.12);
+    transform: translateY(-12px) scale(1.18);
   }
 
   48% {
-    transform: translateY(4px) scale(0.95);
+    transform: translateY(4px) scale(0.94);
   }
 
   68% {
-    transform: translateY(-2px) scale(1.02);
+    transform: translateY(-2px) scale(1.04);
   }
 }
 

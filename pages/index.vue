@@ -160,6 +160,8 @@ const lastCodeSnapshot = ref<Record<string, string>>({})
 
 const roundPrice = (value: number) => Math.round(value * 10000) / 10000
 
+const roundMoneyPrice = (value: number) => Math.round(value * 100) / 100
+
 const formatPrice = (value: number | null | undefined) => {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return '--'
@@ -812,6 +814,10 @@ const scheduleProfileRefresh = () => {
 }
 
 const handleBuyPriceInput = (entry: BuyEntry) => {
+  if (typeof entry.buyPrice === 'number' && Number.isFinite(entry.buyPrice)) {
+    entry.buyPrice = roundMoneyPrice(entry.buyPrice)
+  }
+
   syncEntryLots(entry)
 }
 
@@ -1294,14 +1300,14 @@ watch(
                       v-model.number="entry.buyPrice"
                       type="number"
                       min="0"
-                      step="0.0001"
-                      placeholder="0.0000"
+                      step="0.1"
+                      placeholder="0.00"
                       @input="handleBuyPriceInput(entry)"
                     />
                   </td>
                   <td>
                     <div class="inline-field">
-                      <input v-model.number="entry.targetRate" type="number" step="0.1" />
+                      <input v-model.number="entry.targetRate" type="number" step="0.5" />
                       <span>%</span>
                     </div>
                   </td>
