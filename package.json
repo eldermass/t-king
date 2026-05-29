@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
+    "build:pages": "nuxt build --preset=cloudflare_pages",
     "preview": "nuxt preview"
   },
   "dependencies": {
