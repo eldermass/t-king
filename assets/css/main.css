@@ -88,7 +88,8 @@ input {
 .primary-btn,
 .ghost-btn,
 .mini-btn,
-.icon-btn {
+.icon-btn,
+.ghost-link {
   border: 0;
   border-radius: 999px;
   cursor: pointer;
@@ -106,7 +107,8 @@ input {
 
 .ghost-btn,
 .mini-btn,
-.icon-btn {
+.icon-btn,
+.ghost-link {
   background: var(--accent-soft);
   color: var(--accent);
 }
@@ -114,6 +116,15 @@ input {
 .ghost-btn {
   padding: 7px 11px;
   font-size: 0.86rem;
+}
+
+.ghost-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 11px;
+  font-size: 0.86rem;
+  text-decoration: none;
 }
 
 .mini-btn,
@@ -125,8 +136,16 @@ input {
 .primary-btn:hover,
 .ghost-btn:hover,
 .mini-btn:hover,
-.icon-btn:hover {
+.icon-btn:hover,
+.ghost-link:hover {
   transform: translateY(-1px);
+}
+
+.ghost-btn:disabled,
+.ghost-link[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .stock-grid {
@@ -151,6 +170,10 @@ input {
   box-shadow: var(--shadow);
   transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.25s ease, box-shadow 0.25s ease;
   will-change: transform, box-shadow;
+}
+
+.stock-card-h5 {
+  min-height: calc(100vh - 220px);
 }
 
 .stock-card.is-pressed {
@@ -574,6 +597,115 @@ td input:focus {
   word-break: break-word;
 }
 
+.h5-card-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.h5-card-actions .ghost-btn {
+  flex: 1;
+}
+
+.h5-shell {
+  min-height: 100vh;
+  padding: 14px 14px 24px;
+}
+
+.h5-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.h5-page-indicator {
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+.h5-ticker-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(108px, 1fr);
+  gap: 8px;
+  overflow-x: auto;
+  margin-bottom: 10px;
+  padding: 2px 0 6px;
+  scrollbar-width: none;
+}
+
+.h5-ticker-row::-webkit-scrollbar {
+  display: none;
+}
+
+.h5-ticker-chip {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 16px;
+  background: rgba(255, 250, 240, 0.76);
+  text-align: left;
+  box-shadow: 0 8px 20px rgba(71, 43, 18, 0.08);
+}
+
+.h5-ticker-chip strong {
+  font-size: 0.92rem;
+  line-height: 1;
+}
+
+.h5-ticker-chip span {
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.h5-ticker-chip.is-active {
+  border-color: rgba(240, 138, 36, 0.46);
+  box-shadow:
+    0 8px 20px rgba(71, 43, 18, 0.08),
+    0 0 0 2px rgba(240, 138, 36, 0.14);
+}
+
+.h5-ticker-chip.is-up {
+  color: var(--accent);
+  background: rgba(198, 79, 52, 0.12);
+}
+
+.h5-ticker-chip.is-down {
+  color: var(--accent-2);
+  background: rgba(31, 111, 98, 0.14);
+}
+
+.h5-ticker-chip.is-flat {
+  color: var(--muted);
+  background: rgba(255, 250, 240, 0.76);
+}
+
+.h5-slider {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 100%;
+  gap: 0;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.h5-slider::-webkit-scrollbar {
+  display: none;
+}
+
+.h5-slide {
+  width: 100%;
+  scroll-snap-align: start;
+  padding: 8px 4px 14px;
+}
+
 @keyframes valueBounceGreen {
   0%,
   100% {
@@ -677,6 +809,22 @@ td input:focus {
 
   .quote-pill {
     max-width: 100%;
+  }
+
+  .h5-toolbar {
+    width: 100%;
+  }
+
+  .h5-toolbar {
+    justify-content: space-between;
+  }
+
+  .h5-ticker-row {
+    grid-auto-columns: minmax(96px, 1fr);
+  }
+
+  .h5-card-actions {
+    flex-direction: column;
   }
 
 }
