@@ -291,6 +291,10 @@ input {
   width: 100%;
 }
 
+.title-wrap-h5 {
+  gap: 10px;
+}
+
 .title-line,
 .code-line {
   display: flex;
@@ -298,6 +302,30 @@ input {
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
+}
+
+.title-main-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.title-main-line-h5 {
+  align-items: flex-start;
+}
+
+.title-stack-h5 {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.title-line-h5 {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
 }
 
 .title-input,
@@ -319,6 +347,22 @@ input {
 .code-input {
   color: var(--muted);
   font-size: 0.96rem;
+}
+
+.title-input-h5 {
+  flex: none;
+  min-width: 0;
+  font-size: 1.16rem;
+}
+
+.code-input-h5 {
+  width: 100%;
+  min-width: 0;
+}
+
+.stock-card-h5 .quote-pill {
+  flex: none;
+  max-width: 46%;
 }
 
 .quote-pill {
@@ -809,6 +853,15 @@ td input:focus {
 
   .quote-pill {
     max-width: 100%;
+  }
+
+  .title-line-h5 {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .stock-card-h5 .quote-pill {
+    max-width: 46%;
   }
 
   .h5-toolbar {

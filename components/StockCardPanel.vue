@@ -67,6 +67,13 @@ const {
 const onDragPointerDown = (event: PointerEvent) => emit('dragPointerDown', event, props.stock.id)
 const onMovePrev = () => emit('movePrev', props.stock.id)
 const onMoveNext = () => emit('moveNext', props.stock.id)
+
+const titleInputStyle = (name: string) => {
+  const length = Math.max((name.trim() || '股票名称').length + 1, 4)
+  return {
+    width: `${Math.min(length, 10)}ch`
+  }
+}
 </script>
 
 <template>
@@ -97,7 +104,37 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
     </button>
 
     <header class="card-header">
-      <div class="title-wrap">
+      <div v-if="mode === 'h5'" class="title-wrap title-wrap-h5">
+        <div class="title-main-line title-main-line-h5">
+          <div class="title-stack-h5">
+            <div class="title-line title-line-h5">
+              <input
+                v-model="stock.name"
+                class="title-input title-input-h5"
+                type="text"
+                placeholder="股票名称"
+                :style="titleInputStyle(stock.name)"
+              />
+              <span class="quote-pill" :class="quoteTone(stock.code)">
+                {{ quoteLabel(stock.code) }}
+              </span>
+            </div>
+            <input
+              v-model="stock.code"
+              class="code-input code-input-h5"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="股票代码"
+            />
+          </div>
+          <button class="ghost-btn" type="button" @click="removeStock(stock.id)">
+            删除
+          </button>
+        </div>
+      </div>
+
+      <div v-else class="title-wrap">
         <div class="title-line">
           <input v-model="stock.name" class="title-input" type="text" placeholder="股票名称" />
           <span class="quote-pill" :class="quoteTone(stock.code)">
