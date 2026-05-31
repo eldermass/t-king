@@ -2,12 +2,15 @@
 import { stockBoardKey } from '~/composables/useStockBoard'
 
 const stockBoard = useStockBoard()
+const session = useState<{ authenticated: boolean; user?: { id: string; username: string } } | null>('auth-session', () => null)
 
 provide(stockBoardKey, stockBoard)
 
 const {
   stocks,
   quoteLoading,
+  boardLoading,
+  saveStatus,
   addStock,
   reorderStocks
 } = stockBoard
@@ -121,6 +124,12 @@ const cardStyle = (stockId: string) => {
   }
 }
 
+const logout = async () => {
+  await $fetch('/api/auth/logout', { method: 'POST' })
+  session.value = { authenticated: false }
+  await navigateTo('/login')
+}
+
 onMounted(() => {
   window.addEventListener('pointermove', handleGlobalPointerMove, { passive: false })
   window.addEventListener('pointerup', handleGlobalPointerUp)
@@ -141,10 +150,16 @@ onBeforeUnmount(() => {
       <h1>T王神器</h1>
 
       <div class="topbar-actions">
+        <span class="market-tip">{{ session?.user?.username }}</span>
+        <span class="market-tip" :class="{ 'is-busy': boardLoading || saveStatus === 'saving' }">
+          {{ boardLoading ? '云端加载中' : saveStatus === 'saving' ? '正在保存' : saveStatus === 'saved' ? '已保存到云端' : quoteLoading ? '行情刷新中' : '云端同步中' }}
+        </span>
         <NuxtLink class="ghost-link" to="/h5">H5</NuxtLink>
-        <span class="market-tip" :class="{ 'is-busy': quoteLoading }">行情每 10 秒刷新</span>
         <button class="primary-btn" type="button" @click="addStock">
           新增股票
+        </button>
+        <button class="ghost-btn" type="button" @click="logout">
+          退出
         </button>
       </div>
     </section>

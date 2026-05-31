@@ -1,0 +1,9 @@
+name = "t-king"
+compatibility_date = "2026-05-29"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "t-king-db"
+database_id = "5e250ca6-2ee9-4068-b874-8385fa3cd040"

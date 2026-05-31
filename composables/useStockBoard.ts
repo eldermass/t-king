@@ -57,10 +57,13 @@ export type AlertState = {
   triggeredSellEntryIds: string[]
 }
 
+type BoardPayload = {
+  stocks: StockCard[]
+  alerts: Record<string, AlertState>
+}
+
 export const stockBoardKey = Symbol('stock-board')
 
-const STORAGE_KEY = 'stock-t-helper-data'
-const ALERT_STORAGE_KEY = 'stock-t-helper-alerts'
 const REFRESH_MS = 10_000
 const RECOMMENDED_ADD_RATE = -4
 const INITIAL_POSITION_BUDGET = 30_000
@@ -139,21 +142,30 @@ const defaultStocks = (): StockCard[] => [
   }
 ]
 
+const defaultBoardPayload = (): BoardPayload => ({
+  stocks: defaultStocks(),
+  alerts: {}
+})
+
 export const useStockBoard = () => {
-  const stocks = useState<StockCard[]>('stock-board-stocks', defaultStocks)
+  const stocks = useState<StockCard[]>('stock-board-stocks', () => defaultBoardPayload().stocks)
   const quotes = useState<Record<string, QuoteState>>('stock-board-quotes', () => ({}))
   const profileStatuses = useState<Record<string, RequestStatus>>('stock-board-profile-statuses', () => ({}))
   const alertStates = useState<Record<string, AlertState>>('stock-board-alert-states', () => ({}))
   const hydrated = useState<boolean>('stock-board-hydrated', () => false)
   const quoteLoading = useState<boolean>('stock-board-quote-loading', () => false)
+  const boardLoading = useState<boolean>('stock-board-data-loading', () => false)
+  const boardReady = useState<boolean>('stock-board-data-ready', () => false)
+  const saveStatus = useState<'idle' | 'saving' | 'saved' | 'error'>('stock-board-save-status', () => 'idle')
   const lastCodeSnapshot = useState<Record<string, string>>('stock-board-last-code-snapshot', () => ({}))
 
   let refreshTimer: ReturnType<typeof setInterval> | null = null
   let quoteInputTimer: ReturnType<typeof setTimeout> | null = null
   let profileInputTimer: ReturnType<typeof setTimeout> | null = null
+  let saveTimer: ReturnType<typeof setTimeout> | null = null
+  let saveDoneTimer: ReturnType<typeof setTimeout> | null = null
 
   const roundPrice = (value: number) => Math.round(value * 10000) / 10000
-
   const roundMoneyPrice = (value: number) => Math.round(value * 100) / 100
 
   const formatPrice = (value: number | null | undefined) => {
@@ -190,7 +202,6 @@ export const useStockBoard = () => {
   }
 
   const normalizeCode = (code: string) => code.trim().replace(/[^\d]/g, '').slice(0, 6)
-
   const isValidCode = (code: string) => /^(0|3|6)\d{5}$/.test(normalizeCode(code))
 
   const plannedSellPrice = (entry: BuyEntry) => {
@@ -673,6 +684,67 @@ export const useStockBoard = () => {
     return dipAlertClass(stockId, targetAlert)
   }
 
+  const loadBoard = async () => {
+    boardLoading.value = true
+
+    try {
+      const payload = await $fetch<BoardPayload>('/api/board')
+      stocks.value = payload.stocks?.length ? payload.stocks : defaultBoardPayload().stocks
+      alertStates.value = payload.alerts ?? {}
+      syncAlertStates()
+      lastCodeSnapshot.value = Object.fromEntries(stocks.value.map((stock) => [stock.id, normalizeCode(stock.code)]))
+      hydrated.value = true
+      boardReady.value = true
+    } finally {
+      boardLoading.value = false
+    }
+  }
+
+  const persistBoard = async () => {
+    if (!boardReady.value) {
+      return
+    }
+
+    saveStatus.value = 'saving'
+
+    try {
+      await $fetch('/api/board', {
+        method: 'PUT',
+        body: {
+          stocks: stocks.value,
+          alerts: alertStates.value
+        }
+      })
+
+      saveStatus.value = 'saved'
+
+      if (saveDoneTimer) {
+        clearTimeout(saveDoneTimer)
+      }
+
+      saveDoneTimer = setTimeout(() => {
+        saveStatus.value = 'idle'
+      }, 1200)
+    } catch (error) {
+      console.error('board save failed', error)
+      saveStatus.value = 'error'
+    }
+  }
+
+  const scheduleBoardSave = () => {
+    if (!boardReady.value) {
+      return
+    }
+
+    if (saveTimer) {
+      clearTimeout(saveTimer)
+    }
+
+    saveTimer = setTimeout(() => {
+      persistBoard()
+    }, 300)
+  }
+
   const refreshQuotes = async () => {
     const codes = [...new Set(stocks.value.map((stock) => normalizeCode(stock.code)).filter((code) => isValidCode(code)))]
 
@@ -911,119 +983,23 @@ export const useStockBoard = () => {
     stock.dipAlerts = stock.dipAlerts.filter((alert) => alert.id !== alertId)
   }
 
-  const entryIndexBudget = (entries: any[], currentEntry: any) => {
-    const index = entries.indexOf(currentEntry)
-    return index <= 0 ? INITIAL_POSITION_BUDGET : ADD_POSITION_BUDGET
-  }
-
-  const deriveBudgetFromEntry = (entry: any, fallbackBudget: number) => {
-    if (typeof entry.buyPrice === 'number' && entry.buyPrice > 0 && typeof entry.lots === 'number' && entry.lots > 0) {
-      return Math.round(entry.buyPrice * entry.lots * 100)
-    }
-
-    return fallbackBudget
-  }
-
-  const normalizeLoadedStocks = (input: unknown): StockCard[] | null => {
-    if (!Array.isArray(input)) {
-      return null
-    }
-
-    return input.map((stock: any) => ({
-      id: typeof stock.id === 'string' ? stock.id : createId(),
-      name: typeof stock.name === 'string' ? stock.name : UNNAMED_STOCK_NAME,
-      code: typeof stock.code === 'string' ? stock.code : '',
-      subIndustry: typeof stock.subIndustry === 'string' ? stock.subIndustry : '',
-      primaryTheme: typeof stock.primaryTheme === 'string' ? stock.primaryTheme : '',
-      secondaryTheme: typeof stock.secondaryTheme === 'string' ? stock.secondaryTheme : '',
-      coreBusiness: typeof stock.coreBusiness === 'string' ? stock.coreBusiness : '',
-      buyEntries: Array.isArray(stock.buyEntries) && stock.buyEntries.length
-        ? stock.buyEntries.map((entry: any) => ({
-            id: typeof entry.id === 'string' ? entry.id : createId(),
-            buyPrice: typeof entry.buyPrice === 'number' ? entry.buyPrice : null,
-            targetRate: typeof entry.targetRate === 'number' ? entry.targetRate : 3,
-            lots: typeof entry.lots === 'number' ? entry.lots : null,
-            autoBudget: typeof entry.autoBudget === 'number'
-              ? entry.autoBudget
-              : deriveBudgetFromEntry(entry, entryIndexBudget(stock.buyEntries, entry)),
-            lotsManual: typeof entry.lotsManual === 'boolean'
-              ? entry.lotsManual
-              : typeof entry.lots === 'number'
-          }))
-        : [createBuyEntry()],
-      dipAlerts: Array.isArray(stock.dipAlerts) && stock.dipAlerts.length
-        ? stock.dipAlerts.map((alert: any) => ({
-            id: typeof alert.id === 'string' ? alert.id : createId(),
-            dropRate: typeof alert.dropRate === 'number' ? alert.dropRate : -3
-          }))
-        : [createDipAlert(-3), createDipAlert(-4), createDipAlert(-7)]
-    }))
-  }
-
-  const normalizeLoadedAlerts = (input: unknown): Record<string, AlertState> => {
-    if (!input || typeof input !== 'object') {
-      return {}
-    }
-
-    const entries = Object.entries(input as Record<string, any>)
-    const normalized: Record<string, AlertState> = {}
-
-    for (const [stockId, state] of entries) {
-      if (!state || typeof state !== 'object') {
-        continue
-      }
-
-      normalized[stockId] = {
-        fingerprint: typeof state.fingerprint === 'string' ? state.fingerprint : '',
-        redLevel: [0, 1, 2, 3].includes(state.redLevel) ? state.redLevel : 0,
-        greenActive: Boolean(state.greenActive),
-        triggeredDipAlertIds: Array.isArray(state.triggeredDipAlertIds) ? state.triggeredDipAlertIds.filter((id) => typeof id === 'string') : [],
-        triggeredSellEntryIds: Array.isArray(state.triggeredSellEntryIds) ? state.triggeredSellEntryIds.filter((id) => typeof id === 'string') : []
-      }
-    }
-
-    return normalized
-  }
-
-  onMounted(() => {
-    if (!hydrated.value) {
-      const rawStocks = localStorage.getItem(STORAGE_KEY)
-      const rawAlerts = localStorage.getItem(ALERT_STORAGE_KEY)
-
-      if (rawStocks) {
-        try {
-          const parsed = JSON.parse(rawStocks)
-          const normalized = normalizeLoadedStocks(parsed)
-
-          if (normalized?.length) {
-            stocks.value = normalized
-          }
-        } catch {
-          localStorage.removeItem(STORAGE_KEY)
-        }
-      }
-
-      if (rawAlerts) {
-        try {
-          alertStates.value = normalizeLoadedAlerts(JSON.parse(rawAlerts))
-        } catch {
-          localStorage.removeItem(ALERT_STORAGE_KEY)
-        }
-      }
-
-      syncAlertStates()
-      lastCodeSnapshot.value = Object.fromEntries(stocks.value.map((stock) => [stock.id, normalizeCode(stock.code)]))
-      hydrated.value = true
+  onMounted(async () => {
+    if (!boardReady.value) {
+      await loadBoard()
     }
 
     refreshQuotes()
     refreshProfiles()
-    refreshTimer = setInterval(refreshQuotes, REFRESH_MS)
+
+    if (!refreshTimer) {
+      refreshTimer = setInterval(refreshQuotes, REFRESH_MS)
+    }
   })
 
   onBeforeUnmount(() => {
     if (refreshTimer) {
       clearInterval(refreshTimer)
+      refreshTimer = null
     }
 
     if (quoteInputTimer) {
@@ -1033,29 +1009,37 @@ export const useStockBoard = () => {
     if (profileInputTimer) {
       clearTimeout(profileInputTimer)
     }
+
+    if (saveTimer) {
+      clearTimeout(saveTimer)
+    }
+
+    if (saveDoneTimer) {
+      clearTimeout(saveDoneTimer)
+    }
   })
 
   watch(
     stocks,
-    (value) => {
-      if (!hydrated.value) {
+    () => {
+      if (!boardReady.value) {
         return
       }
 
       syncAlertStates()
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(value))
+      scheduleBoardSave()
     },
     { deep: true }
   )
 
   watch(
     alertStates,
-    (value) => {
-      if (!hydrated.value) {
+    () => {
+      if (!boardReady.value) {
         return
       }
 
-      localStorage.setItem(ALERT_STORAGE_KEY, JSON.stringify(value))
+      scheduleBoardSave()
     },
     { deep: true }
   )
@@ -1082,7 +1066,7 @@ export const useStockBoard = () => {
 
       lastCodeSnapshot.value = nextSnapshot
 
-      if (hydrated.value) {
+      if (boardReady.value) {
         scheduleQuoteRefresh()
         scheduleProfileRefresh()
       }
@@ -1096,6 +1080,10 @@ export const useStockBoard = () => {
     alertStates,
     hydrated,
     quoteLoading,
+    boardLoading,
+    boardReady,
+    saveStatus,
+    loadBoard,
     formatPrice,
     formatSellPrice,
     formatAmount,

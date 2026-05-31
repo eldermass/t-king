@@ -71,7 +71,7 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
 const titleInputStyle = (name: string) => {
   const length = Math.max((name.trim() || '股票名称').length + 1, 4)
   return {
-    width: `${Math.min(length, 10)}ch`
+    width: '100%'
   }
 }
 </script>
@@ -113,7 +113,6 @@ const titleInputStyle = (name: string) => {
                 class="title-input title-input-h5"
                 type="text"
                 placeholder="股票名称"
-                :style="titleInputStyle(stock.name)"
               />
               <span class="quote-pill" :class="quoteTone(stock.code)">
                 {{ quoteLabel(stock.code) }}

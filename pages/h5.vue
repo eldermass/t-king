@@ -2,11 +2,15 @@
 import { stockBoardKey } from '~/composables/useStockBoard'
 
 const stockBoard = useStockBoard()
+const session = useState<{ authenticated: boolean; user?: { id: string; username: string } } | null>('auth-session', () => null)
 
 provide(stockBoardKey, stockBoard)
 
 const {
   stocks,
+  quoteLoading,
+  boardLoading,
+  saveStatus,
   quoteFor,
   quoteTone,
   formatPrice,
@@ -23,14 +27,34 @@ let syncingFromScroll = false
 
 const totalCount = computed(() => stocks.value.length)
 
+const cloudStatusText = computed(() => {
+  if (boardLoading.value) {
+    return '加载中'
+  }
+
+  if (saveStatus.value === 'saving') {
+    return '保存中'
+  }
+
+  if (saveStatus.value === 'saved') {
+    return '已保存'
+  }
+
+  if (quoteLoading.value) {
+    return '行情刷新中'
+  }
+
+  return '已连接云端'
+})
+
 const stockShortName = (name: string, code: string) => {
   const trimmedName = name.trim()
 
   if (trimmedName) {
-    return trimmedName.slice(0, 2)
+    return trimmedName
   }
 
-  return code.trim().slice(0, 2) || '--'
+  return code.trim() || '--'
 }
 
 const stockQuoteText = (code: string) => {
@@ -41,6 +65,12 @@ const stockQuoteText = (code: string) => {
   }
 
   return `${formatPrice(quote.price)} ${formatPercent(quote.changePercent)}`
+}
+
+const logout = async () => {
+  await $fetch('/api/auth/logout', { method: 'POST' })
+  session.value = { authenticated: false }
+  await navigateTo('/login')
 }
 
 const clampIndex = (value: number) => {
@@ -154,8 +184,21 @@ onMounted(() => {
 <template>
   <main class="h5-shell">
     <section class="h5-toolbar">
-      <strong class="h5-page-indicator">{{ currentIndex + 1 }} / {{ totalCount }}</strong>
-      <button class="primary-btn" type="button" @click="handleAddStock">新增股票</button>
+      <div class="h5-toolbar-row">
+        <div class="h5-toolbar-side h5-toolbar-side-left">
+          <strong class="h5-page-indicator">{{ currentIndex + 1 }} / {{ totalCount }}</strong>
+          <span class="market-tip">{{ session?.user?.username || '' }}</span>
+        </div>
+
+        <span class="market-tip h5-toolbar-center" :class="{ 'is-busy': boardLoading || saveStatus === 'saving' || quoteLoading }">
+          {{ cloudStatusText }}
+        </span>
+
+        <div class="h5-toolbar-side h5-toolbar-actions">
+          <button class="primary-btn" type="button" @click="handleAddStock">新增</button>
+          <button class="ghost-btn" type="button" @click="logout">退出</button>
+        </div>
+      </div>
     </section>
 
     <section class="h5-ticker-row" aria-label="股票行情导航">
