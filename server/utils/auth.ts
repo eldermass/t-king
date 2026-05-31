@@ -47,9 +47,9 @@ export const getAuthenticatedUser = async (event: H3Event) => {
   }
 
   return {
-    id: session.user_id,
+    id: session.id,
     username: session.username,
-    sessionId: session.id
+    sessionId: session.sessionId
   }
 }
 
