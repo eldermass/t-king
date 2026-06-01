@@ -12,25 +12,38 @@ const buildTestMessage = (username: string, stockCount: number) => [
 ].join('\n')
 
 export default defineEventHandler(async (event) => {
-  const user = await requireUser(event)
-  const config = getWecomConfig(event)
+  try {
+    const user = await requireUser(event)
+    const config = getWecomConfig(event)
 
-  if (!config) {
+    if (!config) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'WeCom config missing'
+      })
+    }
+
+    const row = await getBoardPayloadByUserId(event, user.id)
+    const payload = row?.payload ? normalizeBoardPayload(JSON.parse(row.payload)) : null
+    const stockCount = payload?.stocks.length ?? 0
+
+    await sendWecomMarkdownMessage(config, buildTestMessage(user.username, stockCount))
+
+    return {
+      ok: true,
+      sentAt: new Date().toISOString(),
+      stockCount
+    }
+  } catch (error: any) {
+    console.error('wecom test failed', error)
+
+    if (error?.statusCode && error?.statusMessage) {
+      throw error
+    }
+
     throw createError({
       statusCode: 500,
-      statusMessage: 'WeCom config missing'
+      statusMessage: error?.message || 'WeCom test failed'
     })
-  }
-
-  const row = await getBoardPayloadByUserId(event, user.id)
-  const payload = row?.payload ? normalizeBoardPayload(JSON.parse(row.payload)) : null
-  const stockCount = payload?.stocks.length ?? 0
-
-  await sendWecomMarkdownMessage(config, buildTestMessage(user.username, stockCount))
-
-  return {
-    ok: true,
-    sentAt: new Date().toISOString(),
-    stockCount
   }
 })

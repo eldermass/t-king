@@ -19,7 +19,7 @@ export type WecomConfig = {
   userId: string
 }
 
-const readConfig = (source: Record<string, any> | undefined): WecomConfig | null => {
+const readConfig = (source: Record<string, unknown> | undefined): WecomConfig | null => {
   const corpId = source?.WECOM_CORP_ID
   const agentId = source?.WECOM_AGENT_ID
   const secret = source?.WECOM_SECRET
@@ -38,21 +38,25 @@ const readConfig = (source: Record<string, any> | undefined): WecomConfig | null
 }
 
 export const getWecomConfig = (event?: H3Event) => {
-  const cloudflareEnv = event?.context.cloudflare?.env as Record<string, any> | undefined
+  const cloudflareEnv = event?.context.cloudflare?.env as Record<string, unknown> | undefined
   const cloudflareConfig = readConfig(cloudflareEnv)
 
   if (cloudflareConfig) {
     return cloudflareConfig
   }
 
-  const runtimeConfig = event ? useRuntimeConfig(event) as Record<string, any> : undefined
+  const runtimeConfig = event ? useRuntimeConfig(event) as Record<string, unknown> : undefined
   const runtimeWecomConfig = readConfig(runtimeConfig)
 
   if (runtimeWecomConfig) {
     return runtimeWecomConfig
   }
 
-  return readConfig(process.env as Record<string, any>)
+  if (typeof process !== 'undefined' && process?.env) {
+    return readConfig(process.env as Record<string, unknown>)
+  }
+
+  return null
 }
 
 export const fetchWecomAccessToken = async (config: WecomConfig) => {
@@ -64,7 +68,10 @@ export const fetchWecomAccessToken = async (config: WecomConfig) => {
   })
 
   if (response.errcode !== 0 || !response.access_token) {
-    throw new Error(`WeCom gettoken failed: ${response.errcode} ${response.errmsg}`)
+    throw createError({
+      statusCode: 502,
+      statusMessage: `WeCom gettoken failed: ${response.errcode} ${response.errmsg}`
+    })
   }
 
   return response.access_token
@@ -89,6 +96,9 @@ export const sendWecomMarkdownMessage = async (config: WecomConfig, markdown: st
   })
 
   if (response.errcode !== 0) {
-    throw new Error(`WeCom send failed: ${response.errcode} ${response.errmsg}`)
+    throw createError({
+      statusCode: 502,
+      statusMessage: `WeCom send failed: ${response.errcode} ${response.errmsg}`
+    })
   }
 }
