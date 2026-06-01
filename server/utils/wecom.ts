@@ -1,3 +1,5 @@
+import type { H3Event } from 'h3'
+
 type WecomTokenResponse = {
   errcode: number
   errmsg: string
@@ -35,8 +37,23 @@ const readConfig = (source: Record<string, any> | undefined): WecomConfig | null
   }
 }
 
-export const getWecomConfigFromEnv = (source?: Record<string, any>) =>
-  readConfig(source ?? (process.env as Record<string, any>))
+export const getWecomConfig = (event?: H3Event) => {
+  const cloudflareEnv = event?.context.cloudflare?.env as Record<string, any> | undefined
+  const cloudflareConfig = readConfig(cloudflareEnv)
+
+  if (cloudflareConfig) {
+    return cloudflareConfig
+  }
+
+  const runtimeConfig = event ? useRuntimeConfig(event) as Record<string, any> : undefined
+  const runtimeWecomConfig = readConfig(runtimeConfig)
+
+  if (runtimeWecomConfig) {
+    return runtimeWecomConfig
+  }
+
+  return readConfig(process.env as Record<string, any>)
+}
 
 export const fetchWecomAccessToken = async (config: WecomConfig) => {
   const response = await $fetch<WecomTokenResponse>('https://qyapi.weixin.qq.com/cgi-bin/gettoken', {

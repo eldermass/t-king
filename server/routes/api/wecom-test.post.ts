@@ -1,7 +1,7 @@
 import { requireUser } from '~/server/utils/auth'
 import { normalizeBoardPayload } from '~/server/utils/board'
 import { getBoardPayloadByUserId } from '~/server/utils/repo'
-import { getWecomConfigFromEnv, sendWecomMarkdownMessage } from '~/server/utils/wecom'
+import { getWecomConfig, sendWecomMarkdownMessage } from '~/server/utils/wecom'
 
 const buildTestMessage = (username: string, stockCount: number) => [
   '# 企业微信测试提醒',
@@ -13,7 +13,7 @@ const buildTestMessage = (username: string, stockCount: number) => [
 
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
-  const config = getWecomConfigFromEnv(useRuntimeConfig(event))
+  const config = getWecomConfig(event)
 
   if (!config) {
     throw createError({
