@@ -549,23 +549,43 @@ export const useStockBoard = () => {
     for (const stock of stocks.value) {
       const current = nextStates[stock.id] ?? emptyAlertState(stock)
       const quote = quoteFor(stock.code)
+      const nextFingerprint = stockFingerprint(stock)
 
       if (quote.price === null) {
-        nextStates[stock.id] = current
+        const updated: AlertState = {
+          fingerprint: nextFingerprint,
+          redLevel: 0,
+          greenActive: false,
+          triggeredDipAlertIds: [],
+          triggeredSellEntryIds: []
+        }
+
+        nextStates[stock.id] = updated
+
+        if (
+          updated.redLevel !== current.redLevel ||
+          updated.greenActive !== current.greenActive ||
+          updated.fingerprint !== current.fingerprint ||
+          updated.triggeredDipAlertIds.join('|') !== current.triggeredDipAlertIds.join('|') ||
+          updated.triggeredSellEntryIds.join('|') !== current.triggeredSellEntryIds.join('|')
+        ) {
+          changed = true
+        }
+
         continue
       }
 
       const nextRedLevel = redAlertLevel(stock, quote.price)
       const sellFloor = minimumSellPrice(stock)
       const greenTriggered = sellFloor !== null && quote.price >= sellFloor
-      const triggeredDipAlertIds = new Set(current.triggeredDipAlertIds)
-      const triggeredSellEntryIds = new Set(current.triggeredSellEntryIds)
+      const triggeredDipAlertIds: string[] = []
+      const triggeredSellEntryIds: string[] = []
 
       for (const alert of stock.dipAlerts) {
         const triggerPrice = dipPrice(referencePrice(stock), alert.dropRate)
 
         if (triggerPrice !== null && quote.price <= triggerPrice) {
-          triggeredDipAlertIds.add(alert.id)
+          triggeredDipAlertIds.push(alert.id)
         }
       }
 
@@ -573,16 +593,16 @@ export const useStockBoard = () => {
         const triggerPrice = plannedSellPrice(entry)
 
         if (triggerPrice !== null && quote.price >= triggerPrice) {
-          triggeredSellEntryIds.add(entry.id)
+          triggeredSellEntryIds.push(entry.id)
         }
       }
 
       const updated: AlertState = {
-        fingerprint: current.fingerprint,
-        redLevel: Math.max(current.redLevel, nextRedLevel) as 0 | 1 | 2 | 3,
-        greenActive: current.greenActive || greenTriggered,
-        triggeredDipAlertIds: [...triggeredDipAlertIds],
-        triggeredSellEntryIds: [...triggeredSellEntryIds]
+        fingerprint: nextFingerprint,
+        redLevel: nextRedLevel,
+        greenActive: greenTriggered,
+        triggeredDipAlertIds,
+        triggeredSellEntryIds
       }
 
       nextStates[stock.id] = updated
