@@ -1,8 +1,9 @@
-import type { BuyEntry, DipAlert, StockCard, AlertState } from '~/composables/useStockBoard'
+import type { BuyEntry, DipAlert, StockCard, AlertState, NotificationSettings, ActiveReminder, ReminderKind } from '~/composables/useStockBoard'
 
 export type BoardPayload = {
   stocks: StockCard[]
   alerts: Record<string, AlertState>
+  notifications: NotificationSettings
 }
 
 const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -49,6 +50,8 @@ export const defaultBoardPayload = (): BoardPayload => ({
       primaryTheme: '汽车电子',
       secondaryTheme: 'UTG / 折叠屏',
       coreBusiness: '研发、生产和销售触控显示器件材料、车载显示模组、超薄玻璃盖板（UTG）等电子显示器件与材料。',
+      recommendedDipAlertId: null,
+      profileInitializedCode: '300088',
       buyEntries: [createBuyEntry(7.85, 3, null, INITIAL_POSITION_BUDGET)],
       dipAlerts: [createDipAlert(-3), createDipAlert(-4), createDipAlert(-7)]
     },
@@ -60,6 +63,8 @@ export const defaultBoardPayload = (): BoardPayload => ({
       primaryTheme: 'AIGC营销',
       secondaryTheme: '出海营销',
       coreBusiness: '提供全案推广、全案广告代理、出海广告投放及 AI 营销等一站式营销科技服务，覆盖品牌传播与效果投放。',
+      recommendedDipAlertId: null,
+      profileInitializedCode: '300058',
       buyEntries: [createBuyEntry(17, 3, null, INITIAL_POSITION_BUDGET), createBuyEntry(16.1, 3, null, ADD_POSITION_BUDGET)],
       dipAlerts: [createDipAlert(-3), createDipAlert(-4), createDipAlert(-7)]
     },
@@ -71,6 +76,8 @@ export const defaultBoardPayload = (): BoardPayload => ({
       primaryTheme: 'AIGC',
       secondaryTheme: '跨境电商',
       coreBusiness: '为企业提供出海整合营销、数字营销、广告变现，以及 AI 数字创意、BI 决策、CI 智能化多云管理等出海数字化服务。',
+      recommendedDipAlertId: null,
+      profileInitializedCode: '301171',
       buyEntries: [
         createBuyEntry(43.7, 3, null, INITIAL_POSITION_BUDGET),
         createBuyEntry(42, 3, null, ADD_POSITION_BUDGET),
@@ -80,7 +87,11 @@ export const defaultBoardPayload = (): BoardPayload => ({
       dipAlerts: [createDipAlert(-3), createDipAlert(-4), createDipAlert(-7)]
     }
   ],
-  alerts: {}
+  alerts: {},
+  notifications: {
+    enabled: true,
+    activeReminders: {}
+  }
 })
 
 const entryIndexBudget = (entries: any[], currentEntry: any) => {
@@ -94,6 +105,26 @@ const deriveBudgetFromEntry = (entry: any, fallbackBudget: number) => {
   }
 
   return fallbackBudget
+}
+
+const normalizeReminderKind = (value: unknown): ReminderKind => value === 'sell' ? 'sell' : 'dip'
+
+const normalizeActiveReminder = (input: any): ActiveReminder | null => {
+  if (!input || typeof input !== 'object' || typeof input.key !== 'string') {
+    return null
+  }
+
+  return {
+    key: input.key,
+    kind: normalizeReminderKind(input.kind),
+    stockId: typeof input.stockId === 'string' ? input.stockId : '',
+    stockName: typeof input.stockName === 'string' ? input.stockName : '',
+    stockCode: typeof input.stockCode === 'string' ? input.stockCode : '',
+    triggerId: typeof input.triggerId === 'string' ? input.triggerId : '',
+    stockFingerprint: typeof input.stockFingerprint === 'string' ? input.stockFingerprint : '',
+    triggerPrice: typeof input.triggerPrice === 'number' ? input.triggerPrice : null,
+    lastSentAt: typeof input.lastSentAt === 'string' ? input.lastSentAt : null
+  }
 }
 
 export const normalizeBoardPayload = (input: unknown): BoardPayload => {
@@ -114,6 +145,8 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
         primaryTheme: typeof stock.primaryTheme === 'string' ? stock.primaryTheme : '',
         secondaryTheme: typeof stock.secondaryTheme === 'string' ? stock.secondaryTheme : '',
         coreBusiness: typeof stock.coreBusiness === 'string' ? stock.coreBusiness : '',
+        recommendedDipAlertId: typeof stock.recommendedDipAlertId === 'string' ? stock.recommendedDipAlertId : null,
+        profileInitializedCode: typeof stock.profileInitializedCode === 'string' ? stock.profileInitializedCode : null,
         buyEntries: Array.isArray(stock.buyEntries) && stock.buyEntries.length
           ? stock.buyEntries.map((entry: any) => ({
               id: typeof entry.id === 'string' ? entry.id : createId(),
@@ -155,5 +188,21 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
     }
   }
 
-  return { stocks, alerts }
+  const rawNotifications = payload.notifications
+  const notifications: NotificationSettings = {
+    enabled: typeof (rawNotifications as any)?.enabled === 'boolean' ? (rawNotifications as any).enabled : true,
+    activeReminders: {}
+  }
+
+  if (rawNotifications && typeof rawNotifications === 'object' && (rawNotifications as any).activeReminders && typeof (rawNotifications as any).activeReminders === 'object') {
+    for (const [key, reminder] of Object.entries((rawNotifications as any).activeReminders as Record<string, any>)) {
+      const normalizedReminder = normalizeActiveReminder({ ...reminder, key })
+
+      if (normalizedReminder) {
+        notifications.activeReminders[key] = normalizedReminder
+      }
+    }
+  }
+
+  return { stocks, alerts, notifications }
 }

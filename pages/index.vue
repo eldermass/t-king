@@ -15,6 +15,7 @@ const {
   reorderStocks
 } = stockBoard
 
+const wecomTestStatus = ref<'idle' | 'sending' | 'success' | 'error'>('idle')
 const draggedStockId = ref<string | null>(null)
 const pressedStockId = ref<string | null>(null)
 const dropTargetStockId = ref<string | null>(null)
@@ -130,6 +131,30 @@ const logout = async () => {
   await navigateTo('/login')
 }
 
+const sendWecomTest = async () => {
+  if (wecomTestStatus.value === 'sending') {
+    return
+  }
+
+  wecomTestStatus.value = 'sending'
+
+  try {
+    await $fetch('/api/wecom-test', {
+      method: 'POST'
+    })
+    wecomTestStatus.value = 'success'
+
+    setTimeout(() => {
+      if (wecomTestStatus.value === 'success') {
+        wecomTestStatus.value = 'idle'
+      }
+    }, 2000)
+  } catch (error) {
+    console.error('wecom test failed', error)
+    wecomTestStatus.value = 'error'
+  }
+}
+
 onMounted(() => {
   window.addEventListener('pointermove', handleGlobalPointerMove, { passive: false })
   window.addEventListener('pointerup', handleGlobalPointerUp)
@@ -147,7 +172,7 @@ onBeforeUnmount(() => {
 <template>
   <main class="page-shell">
     <section class="topbar">
-      <h1>T王神器</h1>
+      <h1>T王做T助手</h1>
 
       <div class="topbar-actions">
         <span class="market-tip">{{ session?.user?.username }}</span>
@@ -155,6 +180,9 @@ onBeforeUnmount(() => {
           {{ boardLoading ? '云端加载中' : saveStatus === 'saving' ? '正在保存' : saveStatus === 'saved' ? '已保存到云端' : quoteLoading ? '行情刷新中' : '云端同步中' }}
         </span>
         <NuxtLink class="ghost-link" to="/h5">H5</NuxtLink>
+        <button class="ghost-btn" type="button" :disabled="wecomTestStatus === 'sending'" @click="sendWecomTest">
+          {{ wecomTestStatus === 'sending' ? '测试中' : wecomTestStatus === 'success' ? '已发送' : wecomTestStatus === 'error' ? '失败重试' : '测试推送' }}
+        </button>
         <button class="primary-btn" type="button" @click="addStock">
           新增股票
         </button>

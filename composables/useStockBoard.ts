@@ -59,9 +59,29 @@ export type AlertState = {
   triggeredSellEntryIds: string[]
 }
 
+export type ReminderKind = 'dip' | 'sell'
+
+export type ActiveReminder = {
+  key: string
+  kind: ReminderKind
+  stockId: string
+  stockName: string
+  stockCode: string
+  triggerId: string
+  stockFingerprint: string
+  triggerPrice: number | null
+  lastSentAt: string | null
+}
+
+export type NotificationSettings = {
+  enabled: boolean
+  activeReminders: Record<string, ActiveReminder>
+}
+
 type BoardPayload = {
   stocks: StockCard[]
   alerts: Record<string, AlertState>
+  notifications: NotificationSettings
 }
 
 export const stockBoardKey = Symbol('stock-board')
@@ -152,7 +172,11 @@ const defaultStocks = (): StockCard[] => [
 
 const defaultBoardPayload = (): BoardPayload => ({
   stocks: defaultStocks(),
-  alerts: {}
+  alerts: {},
+  notifications: {
+    enabled: true,
+    activeReminders: {}
+  }
 })
 
 export const useStockBoard = () => {
@@ -160,6 +184,7 @@ export const useStockBoard = () => {
   const quotes = useState<Record<string, QuoteState>>('stock-board-quotes', () => ({}))
   const profileStatuses = useState<Record<string, RequestStatus>>('stock-board-profile-statuses', () => ({}))
   const alertStates = useState<Record<string, AlertState>>('stock-board-alert-states', () => ({}))
+  const notificationSettings = useState<NotificationSettings>('stock-board-notification-settings', () => defaultBoardPayload().notifications)
   const hydrated = useState<boolean>('stock-board-hydrated', () => false)
   const quoteLoading = useState<boolean>('stock-board-quote-loading', () => false)
   const boardLoading = useState<boolean>('stock-board-data-loading', () => false)
@@ -752,6 +777,7 @@ export const useStockBoard = () => {
       const payload = await $fetch<BoardPayload>('/api/board')
       stocks.value = payload.stocks?.length ? payload.stocks : defaultBoardPayload().stocks
       alertStates.value = payload.alerts ?? {}
+      notificationSettings.value = payload.notifications ?? defaultBoardPayload().notifications
       syncAlertStates()
       lastCodeSnapshot.value = Object.fromEntries(stocks.value.map((stock) => [stock.id, normalizeCode(stock.code)]))
       hydrated.value = true
@@ -773,7 +799,8 @@ export const useStockBoard = () => {
         method: 'PUT',
         body: {
           stocks: stocks.value,
-          alerts: alertStates.value
+          alerts: alertStates.value,
+          notifications: notificationSettings.value
         }
       })
 
@@ -1145,6 +1172,7 @@ export const useStockBoard = () => {
     quotes,
     profileStatuses,
     alertStates,
+    notificationSettings,
     hydrated,
     quoteLoading,
     boardLoading,
