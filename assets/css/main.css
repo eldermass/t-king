@@ -573,6 +573,10 @@ td input:focus {
   width: 52px;
 }
 
+.action-cell .icon-btn + .icon-btn {
+  margin-left: 6px;
+}
+
 .dip-section th,
 .dip-section td {
   font-size: 0.9rem;
@@ -594,6 +598,21 @@ td input:focus {
 .dip-section .mini-btn,
 .dip-section .icon-btn {
   font-size: 0.84rem;
+}
+
+.dip-section .recommend-btn {
+  background: rgba(0, 149, 255, 0.14);
+  color: #0a84ff;
+}
+
+.dip-section .recommend-btn:hover {
+  box-shadow: 0 8px 18px rgba(10, 132, 255, 0.18);
+}
+
+.dip-section .icon-btn.is-active {
+  background: linear-gradient(135deg, #21b8ff 0%, #0a84ff 100%);
+  color: #f6fbff;
+  box-shadow: 0 8px 18px rgba(10, 132, 255, 0.28);
 }
 
 .info-section {
@@ -631,6 +650,28 @@ td input:focus {
   line-height: 1.45;
 }
 
+.info-input,
+.info-textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 250, 240, 0.9);
+  color: var(--text);
+  padding: 9px 10px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.info-input::placeholder,
+.info-textarea::placeholder {
+  color: var(--muted);
+}
+
+.info-textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
 .info-readonly {
   display: flex;
   align-items: center;
@@ -642,6 +683,12 @@ td input:focus {
 }
 
 .theme-pills {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.theme-edit-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;

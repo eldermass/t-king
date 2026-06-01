@@ -20,6 +20,8 @@ export type StockCard = {
   primaryTheme: string
   secondaryTheme: string
   coreBusiness: string
+  recommendedDipAlertId?: string | null
+  profileInitializedCode?: string | null
   buyEntries: BuyEntry[]
   dipAlerts: DipAlert[]
 }
@@ -110,6 +112,8 @@ const defaultStocks = (): StockCard[] => [
     primaryTheme: '汽车电子',
     secondaryTheme: 'UTG / 折叠屏',
     coreBusiness: '研发、生产和销售触控显示器件材料、车载显示模组、超薄玻璃盖板（UTG）等电子显示器件与材料。',
+    recommendedDipAlertId: null,
+    profileInitializedCode: '300088',
     buyEntries: [createBuyEntry(7.85, 3, null, INITIAL_POSITION_BUDGET)],
     dipAlerts: [createDipAlert(-3), createDipAlert(-4), createDipAlert(-7)]
   },
@@ -121,6 +125,8 @@ const defaultStocks = (): StockCard[] => [
     primaryTheme: 'AIGC营销',
     secondaryTheme: '出海营销',
     coreBusiness: '提供全案推广、全案广告代理、出海广告投放及 AI 营销等一站式营销科技服务，覆盖品牌传播与效果投放。',
+    recommendedDipAlertId: null,
+    profileInitializedCode: '300058',
     buyEntries: [createBuyEntry(17, 3, null, INITIAL_POSITION_BUDGET), createBuyEntry(16.1, 3, null, ADD_POSITION_BUDGET)],
     dipAlerts: [createDipAlert(-3), createDipAlert(-4), createDipAlert(-7)]
   },
@@ -132,6 +138,8 @@ const defaultStocks = (): StockCard[] => [
     primaryTheme: 'AIGC',
     secondaryTheme: '跨境电商',
     coreBusiness: '为企业提供出海整合营销、数字营销、广告变现，以及 AI 数字创意、BI 决策、CI 智能化多云管理等出海数字化服务。',
+    recommendedDipAlertId: null,
+    profileInitializedCode: '301171',
     buyEntries: [
       createBuyEntry(43.7, 3, null, INITIAL_POSITION_BUDGET),
       createBuyEntry(42, 3, null, ADD_POSITION_BUDGET),
@@ -232,7 +240,23 @@ export const useStockBoard = () => {
     return Math.min(...prices)
   }
 
-  const recommendedAddPrice = (stock: StockCard) => dipPrice(referencePrice(stock), RECOMMENDED_ADD_RATE)
+  const selectedRecommendedDipAlert = (stock: StockCard) => {
+    const manualAlert = stock.recommendedDipAlertId
+      ? stock.dipAlerts.find((alert) => alert.id === stock.recommendedDipAlertId)
+      : null
+
+    if (manualAlert) {
+      return manualAlert
+    }
+
+    return stock.dipAlerts.find((alert) => alert.dropRate === RECOMMENDED_ADD_RATE) ?? null
+  }
+
+  const recommendedAddPrice = (stock: StockCard) => {
+    const alert = selectedRecommendedDipAlert(stock)
+
+    return dipPrice(referencePrice(stock), alert?.dropRate ?? RECOMMENDED_ADD_RATE)
+  }
 
   const minimumSellPrice = (stock: StockCard) => {
     const prices = stock.buyEntries
@@ -353,7 +377,10 @@ export const useStockBoard = () => {
         targetRate: entry.targetRate,
         lots: entry.lots
       })),
+      recommendedDipAlertId: stock.recommendedDipAlertId ?? null,
+      profileInitializedCode: stock.profileInitializedCode ?? null,
       dipAlerts: stock.dipAlerts.map((alert) => ({
+        id: alert.id,
         dropRate: alert.dropRate
       }))
     })
@@ -417,6 +444,7 @@ export const useStockBoard = () => {
     stock.primaryTheme = ''
     stock.secondaryTheme = ''
     stock.coreBusiness = ''
+    stock.profileInitializedCode = null
   }
 
   const syncStockProfile = (stock: StockCard, profile: StockProfile) => {
@@ -424,10 +452,16 @@ export const useStockBoard = () => {
       stock.name = profile.name
     }
 
-    stock.subIndustry = profile.subIndustry
-    stock.primaryTheme = profile.primaryTheme
-    stock.secondaryTheme = profile.secondaryTheme
-    stock.coreBusiness = profile.coreBusiness
+    const normalizedCode = normalizeCode(stock.code)
+    const hasInitializedProfile = stock.profileInitializedCode === normalizedCode
+
+    if (!hasInitializedProfile) {
+      stock.subIndustry = profile.subIndustry
+      stock.primaryTheme = profile.primaryTheme
+      stock.secondaryTheme = profile.secondaryTheme
+      stock.coreBusiness = profile.coreBusiness
+      stock.profileInitializedCode = normalizedCode
+    }
   }
 
   const syncStockNamesFromQuotes = (response: QuoteResponse) => {
@@ -695,13 +729,20 @@ export const useStockBoard = () => {
       return ''
     }
 
-    const targetAlert = stock.dipAlerts.find((alert) => alert.dropRate === RECOMMENDED_ADD_RATE)
+    const targetAlert = selectedRecommendedDipAlert(stock)
 
     if (!targetAlert) {
       return ''
     }
 
     return dipAlertClass(stockId, targetAlert)
+  }
+
+  const isRecommendedDipAlert = (stock: StockCard, alertId: string) =>
+    selectedRecommendedDipAlert(stock)?.id === alertId
+
+  const applyRecommendedDipAlert = (stock: StockCard, alertId: string) => {
+    stock.recommendedDipAlertId = alertId
   }
 
   const loadBoard = async () => {
@@ -952,6 +993,8 @@ export const useStockBoard = () => {
       primaryTheme: '',
       secondaryTheme: '',
       coreBusiness: '',
+      recommendedDipAlertId: null,
+      profileInitializedCode: null,
       buyEntries: [createBuyEntry(null, 3, null, INITIAL_POSITION_BUDGET)],
       dipAlerts: [createDipAlert(-3), createDipAlert(-4), createDipAlert(-7)]
     })
@@ -1001,6 +1044,10 @@ export const useStockBoard = () => {
     }
 
     stock.dipAlerts = stock.dipAlerts.filter((alert) => alert.id !== alertId)
+
+    if (stock.recommendedDipAlertId === alertId) {
+      stock.recommendedDipAlertId = null
+    }
   }
 
   onMounted(async () => {
@@ -1130,6 +1177,8 @@ export const useStockBoard = () => {
     isSellTriggered,
     dipAlertClass,
     recommendedAddClass,
+    isRecommendedDipAlert,
+    applyRecommendedDipAlert,
     refreshQuotes,
     refreshProfiles,
     handleBuyPriceInput,

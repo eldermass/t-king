@@ -55,6 +55,8 @@ const {
   isSellTriggered,
   dipAlertClass,
   recommendedAddClass,
+  isRecommendedDipAlert,
+  applyRecommendedDipAlert,
   handleBuyPriceInput,
   handleLotsInput,
   removeStock,
@@ -266,6 +268,14 @@ const titleInputStyle = (name: string) => {
                 {{ formatPrice(dipPrice(referencePrice(stock), alert.dropRate)) }}
               </td>
               <td class="action-cell">
+                <button
+                  class="icon-btn recommend-btn"
+                  :class="{ 'is-active': isRecommendedDipAlert(stock, alert.id) }"
+                  type="button"
+                  @click="applyRecommendedDipAlert(stock, alert.id)"
+                >
+                  推
+                </button>
                 <button class="icon-btn" type="button" @click="removeDipAlert(stock, alert.id)">
                   删
                 </button>
@@ -284,20 +294,40 @@ const titleInputStyle = (name: string) => {
       <div class="info-stack">
         <label class="info-field info-field-wide">
           <span>细分行业</span>
-          <strong class="info-readonly">{{ profileText(stock.subIndustry, stock.code) }}</strong>
+          <input
+            v-model="stock.subIndustry"
+            class="info-input"
+            type="text"
+            :placeholder="profileText('', stock.code)"
+          />
         </label>
 
         <label class="info-field info-field-wide">
           <span>热点题材</span>
-          <div v-if="themeList(stock).length" class="theme-pills">
-            <strong v-for="theme in themeList(stock)" :key="theme" class="info-readonly theme-chip">{{ theme }}</strong>
+          <div class="theme-edit-grid">
+            <input
+              v-model="stock.primaryTheme"
+              class="info-input"
+              type="text"
+              :placeholder="profileText('', stock.code)"
+            />
+            <input
+              v-model="stock.secondaryTheme"
+              class="info-input"
+              type="text"
+              :placeholder="profileText('', stock.code)"
+            />
           </div>
-          <strong v-else class="info-readonly">{{ profileText('', stock.code) }}</strong>
         </label>
 
         <label class="info-field info-field-wide">
           <span>主营业务</span>
-          <p class="info-description">{{ profileText(stock.coreBusiness, stock.code) }}</p>
+          <textarea
+            v-model="stock.coreBusiness"
+            class="info-textarea"
+            rows="2"
+            :placeholder="profileText('', stock.code)"
+          />
         </label>
       </div>
     </section>
