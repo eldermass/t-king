@@ -79,7 +79,7 @@ type ReminderSummaryItem = {
   triggerPrices: Array<number | null>
 }
 
-const REPEAT_MS = 5 * 60 * 1000
+const REPEAT_MS = 3 * 60 * 1000
 
 const normalizeCode = (code: string) => code.trim().replace(/[^\d]/g, '').slice(0, 6)
 const isValidCode = (code: string) => /^(0|3|6)\d{5}$/.test(code)
