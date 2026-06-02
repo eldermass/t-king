@@ -866,19 +866,20 @@ export const useStockBoard = () => {
       for (const code of codes) {
         const item = response[code]
 
-        if (item) {
+        if (item && item.price !== null) {
           nextQuotes[code] = {
             ...item,
             status: 'ready'
           }
         } else {
+          const current = quotes.value[code]
           nextQuotes[code] = {
-            price: null,
-            previousClose: null,
-            change: null,
-            changePercent: null,
-            updatedAt: null,
-            status: 'error'
+            price: current?.price ?? null,
+            previousClose: current?.previousClose ?? null,
+            change: current?.change ?? null,
+            changePercent: current?.changePercent ?? null,
+            updatedAt: current?.updatedAt ?? null,
+            status: current?.price !== null && current?.price !== undefined ? 'ready' : 'error'
           }
         }
       }
