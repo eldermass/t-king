@@ -2,6 +2,9 @@ type BuyEntry = {
   id: string
   buyPrice: number | null
   targetRate: number
+  lots: number | null
+  autoBudget: number
+  lotsManual: boolean
 }
 
 type DipAlert = {
@@ -13,7 +16,12 @@ type StockCard = {
   id: string
   name: string
   code: string
+  subIndustry: string
+  primaryTheme: string
+  secondaryTheme: string
+  coreBusiness: string
   recommendedDipAlertId?: string | null
+  profileInitializedCode?: string | null
   buyEntries: BuyEntry[]
   dipAlerts: DipAlert[]
 }
@@ -121,9 +129,11 @@ const stockFingerprint = (stock: StockCard) =>
     code: normalizeCode(stock.code),
     buyEntries: stock.buyEntries.map((entry) => ({
       buyPrice: entry.buyPrice,
-      targetRate: entry.targetRate
+      targetRate: entry.targetRate,
+      lots: entry.lots
     })),
     recommendedDipAlertId: stock.recommendedDipAlertId ?? null,
+    profileInitializedCode: stock.profileInitializedCode ?? null,
     dipAlerts: stock.dipAlerts.map((alert) => ({
       id: alert.id,
       dropRate: alert.dropRate
@@ -139,12 +149,20 @@ const normalizeStock = (input: any): StockCard | null => {
     id: typeof input.id === 'string' ? input.id : crypto.randomUUID(),
     name: typeof input.name === 'string' ? input.name : '',
     code: typeof input.code === 'string' ? input.code : '',
+    subIndustry: typeof input.subIndustry === 'string' ? input.subIndustry : '',
+    primaryTheme: typeof input.primaryTheme === 'string' ? input.primaryTheme : '',
+    secondaryTheme: typeof input.secondaryTheme === 'string' ? input.secondaryTheme : '',
+    coreBusiness: typeof input.coreBusiness === 'string' ? input.coreBusiness : '',
     recommendedDipAlertId: typeof input.recommendedDipAlertId === 'string' ? input.recommendedDipAlertId : null,
+    profileInitializedCode: typeof input.profileInitializedCode === 'string' ? input.profileInitializedCode : null,
     buyEntries: Array.isArray(input.buyEntries)
       ? input.buyEntries.map((entry: any) => ({
           id: typeof entry?.id === 'string' ? entry.id : crypto.randomUUID(),
           buyPrice: typeof entry?.buyPrice === 'number' ? entry.buyPrice : null,
-          targetRate: typeof entry?.targetRate === 'number' ? entry.targetRate : 3
+          targetRate: typeof entry?.targetRate === 'number' ? entry.targetRate : 3,
+          lots: typeof entry?.lots === 'number' ? entry.lots : null,
+          autoBudget: typeof entry?.autoBudget === 'number' ? entry.autoBudget : 10_000,
+          lotsManual: typeof entry?.lotsManual === 'boolean' ? entry.lotsManual : typeof entry?.lots === 'number'
         }))
       : [],
     dipAlerts: Array.isArray(input.dipAlerts)
