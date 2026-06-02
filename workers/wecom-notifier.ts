@@ -73,6 +73,12 @@ type PushDeerResponse = {
   error?: string | null
 }
 
+type ReminderSummaryItem = {
+  stockName: string
+  quote: QuoteSnapshot | undefined
+  triggerPrices: Array<number | null>
+}
+
 const REPEAT_MS = 5 * 60 * 1000
 
 const normalizeCode = (code: string) => code.trim().replace(/[^\d]/g, '').slice(0, 6)
@@ -331,15 +337,88 @@ const sendPushDeerMessage = async (env: Env, title: string, body: string) => {
   }
 }
 
-const buildMessageTitle = (reminder: ActiveReminder) => reminder.kind === 'dip' ? '补仓提醒' : '卖出提醒'
+const comparePrice = (left: number | null, right: number | null) => {
+  if (left === null && right === null) {
+    return 0
+  }
 
-const buildMessageBody = (reminder: ActiveReminder, quote: QuoteSnapshot | undefined) => [
-  `# ${buildMessageTitle(reminder)}`,
-  `> ${reminder.stockName} ${reminder.stockCode}`,
-  `当前价：${formatPrice(quote?.price ?? null)} (${formatPercent(quote?.changePercent ?? null)})`,
-  `触发价：${formatPrice(reminder.triggerPrice)}`,
-  `时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`
-].join('\n')
+  if (left === null) {
+    return 1
+  }
+
+  if (right === null) {
+    return -1
+  }
+
+  return left - right
+}
+
+const formatTriggerPrices = (prices: Array<number | null>) => {
+  const unique = [...new Set(prices.filter((price): price is number => price !== null))]
+
+  if (!unique.length) {
+    return '--'
+  }
+
+  return unique
+    .sort((left, right) => comparePrice(left, right))
+    .map((price) => formatPrice(price))
+    .join(' / ')
+}
+
+const buildBatchMessageTitle = (reminders: ActiveReminder[]) => {
+  const stockCount = new Set(reminders.map((reminder) => reminder.stockId)).size
+  return `做T操作提醒（${stockCount}只）`
+}
+
+const buildBatchMessageBody = (reminders: ActiveReminder[], quotes: Record<string, QuoteSnapshot>, now: Date) => {
+  const buyMap = new Map<string, ReminderSummaryItem>()
+  const sellMap = new Map<string, ReminderSummaryItem>()
+
+  for (const reminder of reminders) {
+    const quote = quotes[normalizeCode(reminder.stockCode)]
+    const targetMap = reminder.kind === 'dip' ? buyMap : sellMap
+    const current = targetMap.get(reminder.stockId)
+
+    if (current) {
+      current.triggerPrices.push(reminder.triggerPrice)
+      continue
+    }
+
+    targetMap.set(reminder.stockId, {
+      stockName: reminder.stockName,
+      quote,
+      triggerPrices: [reminder.triggerPrice]
+    })
+  }
+
+  const body: string[] = [
+    '# 做T操作提醒',
+    `> ${now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`
+  ]
+
+  if (buyMap.size) {
+    body.push('', '## 买入')
+
+    for (const item of [...buyMap.values()].sort((left, right) => left.stockName.localeCompare(right.stockName, 'zh-CN'))) {
+      body.push(
+        `- ${item.stockName}：现价 ${formatPrice(item.quote?.price ?? null)}（${formatPercent(item.quote?.changePercent ?? null)}），参考买入 ${formatTriggerPrices(item.triggerPrices)}`
+      )
+    }
+  }
+
+  if (sellMap.size) {
+    body.push('', '## 卖出')
+
+    for (const item of [...sellMap.values()].sort((left, right) => left.stockName.localeCompare(right.stockName, 'zh-CN'))) {
+      body.push(
+        `- ${item.stockName}：现价 ${formatPrice(item.quote?.price ?? null)}（${formatPercent(item.quote?.changePercent ?? null)}），参考卖出 ${formatTriggerPrices(item.triggerPrices)}`
+      )
+    }
+  }
+
+  return body.join('\n')
+}
 
 const processBoard = async (env: Env, row: BoardRow, quotes: Record<string, QuoteSnapshot>, now: Date) => {
   let parsed: BoardPayload | null = null
@@ -358,15 +437,19 @@ const processBoard = async (env: Env, row: BoardRow, quotes: Record<string, Quot
   const { next, due } = reconcileNotifications(parsed, quotes, now)
   let changed = JSON.stringify(parsed.notifications ?? {}) !== JSON.stringify(next)
 
-  for (const reminder of due) {
-    const quote = quotes[normalizeCode(reminder.stockCode)]
+  if (due.length) {
+    const activeReminders = Object.values(next.activeReminders)
 
     try {
-      await sendPushDeerMessage(env, buildMessageTitle(reminder), buildMessageBody(reminder, quote))
-      next.activeReminders[reminder.key].lastSentAt = now.toISOString()
+      await sendPushDeerMessage(env, buildBatchMessageTitle(activeReminders), buildBatchMessageBody(activeReminders, quotes, now))
+
+      for (const reminder of activeReminders) {
+        next.activeReminders[reminder.key].lastSentAt = now.toISOString()
+      }
+
       changed = true
     } catch (error) {
-      console.log(`pushdeer send failed for ${reminder.key}`, error)
+      console.log(`pushdeer batch send failed for ${row.user_id}`, error)
     }
   }
 
