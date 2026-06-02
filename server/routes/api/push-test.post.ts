@@ -1,6 +1,6 @@
 import { requireUser } from '~/server/utils/auth'
 import { normalizeBoardPayload } from '~/server/utils/board'
-import { getPushDeerConfig, sendPushDeerMarkdownMessage } from '~/server/utils/pushdeer'
+import { sendPushDeerMarkdownMessage } from '~/server/utils/pushdeer'
 import { getBoardPayloadByUserId } from '~/server/utils/repo'
 
 const buildTestMessage = (username: string, stockCount: number) => {
@@ -19,21 +19,21 @@ const buildTestMessage = (username: string, stockCount: number) => {
 export default defineEventHandler(async (event) => {
   try {
     const user = await requireUser(event)
-    const config = getPushDeerConfig(event)
-
-    if (!config) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'PushDeer config missing'
-      })
-    }
-
     const row = await getBoardPayloadByUserId(event, user.id)
     const payload = row?.payload ? normalizeBoardPayload(JSON.parse(row.payload)) : null
     const stockCount = payload?.stocks.length ?? 0
+    const pushDeerKey = payload?.notifications.pushDeerKey?.trim()
+
+    if (!pushDeerKey) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'PushDeer key missing'
+      })
+    }
+
     const message = buildTestMessage(user.username, stockCount)
 
-    await sendPushDeerMarkdownMessage(config, message.title, message.desp)
+    await sendPushDeerMarkdownMessage({ pushKey: pushDeerKey }, message.title, message.desp)
 
     return {
       ok: true,

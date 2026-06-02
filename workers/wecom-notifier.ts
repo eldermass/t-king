@@ -32,6 +32,7 @@ type ActiveReminder = {
 
 type NotificationSettings = {
   enabled: boolean
+  pushDeerKey: string
   activeReminders: Record<string, ActiveReminder>
 }
 
@@ -49,7 +50,6 @@ type QuoteSnapshot = {
 
 type Env = {
   DB: D1Database
-  PUSHDEER_PUSHKEY: string
 }
 
 type BoardRow = {
@@ -180,6 +180,7 @@ const normalizeNotifications = (input: any): NotificationSettings => {
 
   return {
     enabled: typeof input?.enabled === 'boolean' ? input.enabled : true,
+    pushDeerKey: typeof input?.pushDeerKey === 'string' ? input.pushDeerKey : '',
     activeReminders
   }
 }
@@ -273,7 +274,13 @@ const reconcileNotifications = (payload: BoardPayload, quotes: Record<string, Qu
   const current = normalizeNotifications(payload.notifications)
   const next: NotificationSettings = {
     enabled: current.enabled,
+    pushDeerKey: current.pushDeerKey,
     activeReminders: {}
+  }
+  const pushDeerKey = current.pushDeerKey.trim()
+
+  if (!pushDeerKey) {
+    return { next, due: [] }
   }
 
   for (const stock of payload.stocks) {
@@ -316,14 +323,14 @@ const reconcileNotifications = (payload: BoardPayload, quotes: Record<string, Qu
   return { next, due }
 }
 
-const sendPushDeerMessage = async (env: Env, title: string, body: string) => {
+const sendPushDeerMessage = async (pushKey: string, title: string, body: string) => {
   const response = await fetch('https://api2.pushdeer.com/message/push', {
     method: 'POST',
     headers: {
       'content-type': 'application/json'
     },
     body: JSON.stringify({
-      pushkey: env.PUSHDEER_PUSHKEY,
+      pushkey: pushKey,
       text: title,
       desp: body,
       type: 'markdown'
@@ -436,12 +443,13 @@ const processBoard = async (env: Env, row: BoardRow, quotes: Record<string, Quot
 
   const { next, due } = reconcileNotifications(parsed, quotes, now)
   let changed = JSON.stringify(parsed.notifications ?? {}) !== JSON.stringify(next)
+  const pushDeerKey = next.pushDeerKey.trim()
 
-  if (due.length) {
+  if (due.length && pushDeerKey) {
     const activeReminders = Object.values(next.activeReminders)
 
     try {
-      await sendPushDeerMessage(env, buildBatchMessageTitle(activeReminders), buildBatchMessageBody(activeReminders, quotes, now))
+      await sendPushDeerMessage(pushDeerKey, buildBatchMessageTitle(activeReminders), buildBatchMessageBody(activeReminders, quotes, now))
 
       for (const reminder of activeReminders) {
         next.activeReminders[reminder.key].lastSentAt = now.toISOString()

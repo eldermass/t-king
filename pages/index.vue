@@ -155,6 +155,7 @@ onBeforeUnmount(() => {
           {{ boardLoading ? '云端加载中' : saveStatus === 'saving' ? '正在保存' : saveStatus === 'saved' ? '已保存到云端' : quoteLoading ? '行情刷新中' : '云端同步中' }}
         </span>
         <NuxtLink class="ghost-link" to="/h5">H5</NuxtLink>
+        <PushDeerSettingsButton />
         <button class="primary-btn" type="button" @click="addStock">
           新增股票
         </button>

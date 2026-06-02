@@ -75,6 +75,7 @@ export type ActiveReminder = {
 
 export type NotificationSettings = {
   enabled: boolean
+  pushDeerKey: string
   activeReminders: Record<string, ActiveReminder>
 }
 
@@ -175,6 +176,7 @@ const defaultBoardPayload = (): BoardPayload => ({
   alerts: {},
   notifications: {
     enabled: true,
+    pushDeerKey: '',
     activeReminders: {}
   }
 })
@@ -1129,6 +1131,18 @@ export const useStockBoard = () => {
 
   watch(
     alertStates,
+    () => {
+      if (!boardReady.value) {
+        return
+      }
+
+      scheduleBoardSave()
+    },
+    { deep: true }
+  )
+
+  watch(
+    notificationSettings,
     () => {
       if (!boardReady.value) {
         return

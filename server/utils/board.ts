@@ -90,6 +90,7 @@ export const defaultBoardPayload = (): BoardPayload => ({
   alerts: {},
   notifications: {
     enabled: true,
+    pushDeerKey: '',
     activeReminders: {}
   }
 })
@@ -191,6 +192,7 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
   const rawNotifications = payload.notifications
   const notifications: NotificationSettings = {
     enabled: typeof (rawNotifications as any)?.enabled === 'boolean' ? (rawNotifications as any).enabled : true,
+    pushDeerKey: typeof (rawNotifications as any)?.pushDeerKey === 'string' ? (rawNotifications as any).pushDeerKey : '',
     activeReminders: {}
   }
 

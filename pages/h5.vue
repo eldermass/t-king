@@ -195,6 +195,7 @@ onMounted(() => {
         </span>
 
         <div class="h5-toolbar-side h5-toolbar-actions">
+          <PushDeerSettingsButton compact />
           <button class="primary-btn" type="button" @click="handleAddStock">新增</button>
           <button class="ghost-btn" type="button" @click="logout">退出</button>
         </div>

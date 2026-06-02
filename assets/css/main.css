@@ -86,6 +86,106 @@ input {
   color: var(--accent-2);
 }
 
+.settings-trigger.is-configured {
+  background: rgba(31, 111, 98, 0.12);
+  color: var(--accent-2);
+}
+
+.settings-trigger-compact {
+  padding: 7px 11px;
+  font-size: 0.86rem;
+}
+
+.settings-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(41, 35, 26, 0.34);
+  backdrop-filter: blur(6px);
+}
+
+.settings-modal {
+  width: min(100%, 520px);
+  padding: 20px;
+  border-radius: 22px;
+  background: rgba(255, 252, 245, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  box-shadow: 0 24px 60px rgba(71, 43, 18, 0.22);
+}
+
+.settings-modal-compact {
+  width: min(100%, 460px);
+  padding: 18px;
+}
+
+.settings-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.settings-modal-head h2 {
+  margin: 0;
+  font-size: 1.12rem;
+}
+
+.settings-modal-head p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.settings-field {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-field span {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.settings-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  outline: none;
+  background: rgba(255, 250, 240, 0.95);
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.settings-input:focus {
+  border-color: rgba(31, 111, 98, 0.34);
+  box-shadow: 0 0 0 3px rgba(31, 111, 98, 0.1);
+}
+
+.settings-input::placeholder {
+  color: var(--muted);
+}
+
+.settings-hint {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.settings-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
 .primary-btn,
 .ghost-btn,
 .mini-btn,

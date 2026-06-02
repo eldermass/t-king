@@ -161,6 +161,7 @@ export const reconcileNotificationSettings = (
 ) => {
   const nextSettings: NotificationSettings = {
     enabled: payload.notifications?.enabled ?? true,
+    pushDeerKey: payload.notifications?.pushDeerKey ?? '',
     activeReminders: {}
   }
 
