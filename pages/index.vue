@@ -15,7 +15,6 @@ const {
   reorderStocks
 } = stockBoard
 
-const pushTestStatus = ref<'idle' | 'sending' | 'success' | 'error'>('idle')
 const draggedStockId = ref<string | null>(null)
 const pressedStockId = ref<string | null>(null)
 const dropTargetStockId = ref<string | null>(null)
@@ -131,30 +130,6 @@ const logout = async () => {
   await navigateTo('/login')
 }
 
-const sendPushTest = async () => {
-  if (pushTestStatus.value === 'sending') {
-    return
-  }
-
-  pushTestStatus.value = 'sending'
-
-  try {
-    await $fetch('/api/push-test', {
-      method: 'POST'
-    })
-    pushTestStatus.value = 'success'
-
-    setTimeout(() => {
-      if (pushTestStatus.value === 'success') {
-        pushTestStatus.value = 'idle'
-      }
-    }, 2000)
-  } catch (error) {
-    console.error('pushdeer test failed', error)
-    pushTestStatus.value = 'error'
-  }
-}
-
 onMounted(() => {
   window.addEventListener('pointermove', handleGlobalPointerMove, { passive: false })
   window.addEventListener('pointerup', handleGlobalPointerUp)
@@ -180,9 +155,6 @@ onBeforeUnmount(() => {
           {{ boardLoading ? '云端加载中' : saveStatus === 'saving' ? '正在保存' : saveStatus === 'saved' ? '已保存到云端' : quoteLoading ? '行情刷新中' : '云端同步中' }}
         </span>
         <NuxtLink class="ghost-link" to="/h5">H5</NuxtLink>
-        <button class="ghost-btn" type="button" :disabled="pushTestStatus === 'sending'" @click="sendPushTest">
-          {{ pushTestStatus === 'sending' ? '测试中' : pushTestStatus === 'success' ? '已发送' : pushTestStatus === 'error' ? '失败重试' : '测试推送' }}
-        </button>
         <button class="primary-btn" type="button" @click="addStock">
           新增股票
         </button>
