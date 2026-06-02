@@ -49,10 +49,7 @@ type QuoteSnapshot = {
 
 type Env = {
   DB: D1Database
-  WECOM_CORP_ID: string
-  WECOM_AGENT_ID: string
-  WECOM_SECRET: string
-  WECOM_USER_ID: string
+  PUSHDEER_PUSHKEY: string
 }
 
 type BoardRow = {
@@ -71,15 +68,9 @@ type EastmoneyResponse = {
   }
 }
 
-type WecomTokenResponse = {
-  errcode: number
-  errmsg: string
-  access_token?: string
-}
-
-type WecomSendResponse = {
-  errcode: number
-  errmsg: string
+type PushDeerResponse = {
+  code: number
+  error?: string | null
 }
 
 const REPEAT_MS = 5 * 60 * 1000
@@ -319,44 +310,31 @@ const reconcileNotifications = (payload: BoardPayload, quotes: Record<string, Qu
   return { next, due }
 }
 
-const getWecomToken = async (env: Env) => {
-  const response = await fetch(`https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=${encodeURIComponent(env.WECOM_CORP_ID)}&corpsecret=${encodeURIComponent(env.WECOM_SECRET)}`)
-  const json = await response.json() as WecomTokenResponse
-
-  if (json.errcode !== 0 || !json.access_token) {
-    throw new Error(`WeCom gettoken failed: ${json.errcode} ${json.errmsg}`)
-  }
-
-  return json.access_token
-}
-
-const sendWecomMessage = async (env: Env, markdown: string) => {
-  const accessToken = await getWecomToken(env)
-  const response = await fetch(`https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=${encodeURIComponent(accessToken)}`, {
+const sendPushDeerMessage = async (env: Env, title: string, body: string) => {
+  const response = await fetch('https://api2.pushdeer.com/message/push', {
     method: 'POST',
     headers: {
       'content-type': 'application/json'
     },
     body: JSON.stringify({
-      touser: env.WECOM_USER_ID,
-      msgtype: 'markdown',
-      agentid: Number(env.WECOM_AGENT_ID),
-      markdown: {
-        content: markdown
-      },
-      safe: 0
+      pushkey: env.PUSHDEER_PUSHKEY,
+      text: title,
+      desp: body,
+      type: 'markdown'
     })
   })
 
-  const json = await response.json() as WecomSendResponse
+  const json = await response.json() as PushDeerResponse
 
-  if (json.errcode !== 0) {
-    throw new Error(`WeCom send failed: ${json.errcode} ${json.errmsg}`)
+  if (json.code !== 0) {
+    throw new Error(`PushDeer send failed: ${json.error ?? `code ${json.code}`}`)
   }
 }
 
-const buildMessage = (reminder: ActiveReminder, quote: QuoteSnapshot | undefined) => [
-  `# ${reminder.kind === 'dip' ? '补仓提醒' : '卖出提醒'}`,
+const buildMessageTitle = (reminder: ActiveReminder) => reminder.kind === 'dip' ? '补仓提醒' : '卖出提醒'
+
+const buildMessageBody = (reminder: ActiveReminder, quote: QuoteSnapshot | undefined) => [
+  `# ${buildMessageTitle(reminder)}`,
   `> ${reminder.stockName} ${reminder.stockCode}`,
   `当前价：${formatPrice(quote?.price ?? null)} (${formatPercent(quote?.changePercent ?? null)})`,
   `触发价：${formatPrice(reminder.triggerPrice)}`,
@@ -384,11 +362,11 @@ const processBoard = async (env: Env, row: BoardRow, quotes: Record<string, Quot
     const quote = quotes[normalizeCode(reminder.stockCode)]
 
     try {
-      await sendWecomMessage(env, buildMessage(reminder, quote))
+      await sendPushDeerMessage(env, buildMessageTitle(reminder), buildMessageBody(reminder, quote))
       next.activeReminders[reminder.key].lastSentAt = now.toISOString()
       changed = true
     } catch (error) {
-      console.log(`wecom send failed for ${reminder.key}`, error)
+      console.log(`pushdeer send failed for ${reminder.key}`, error)
     }
   }
 

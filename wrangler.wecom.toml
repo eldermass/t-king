@@ -1,4 +1,4 @@
-name = "t-king-wecom-notifier"
+name = "t-king-pushdeer-notifier"
 main = "workers/wecom-notifier.ts"
 compatibility_date = "2026-05-29"
 compatibility_flags = ["nodejs_compat"]
