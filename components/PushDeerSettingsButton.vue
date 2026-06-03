@@ -9,12 +9,14 @@ const { notificationSettings } = useStockBoard()
 
 const open = ref(false)
 const draftKey = ref('')
+const draftNoticeText = ref('')
 
 const hasKey = computed(() => notificationSettings.value.pushDeerKey.trim().length > 0)
 const statusText = computed(() => hasKey.value ? '已配置' : '未配置')
 
 const openDialog = () => {
   draftKey.value = notificationSettings.value.pushDeerKey
+  draftNoticeText.value = notificationSettings.value.noticeText
   open.value = true
 }
 
@@ -24,16 +26,19 @@ const closeDialog = () => {
 
 const saveSettings = () => {
   notificationSettings.value.pushDeerKey = draftKey.value.trim()
+  notificationSettings.value.noticeText = draftNoticeText.value.trim()
   open.value = false
 }
 
 const clearSettings = () => {
   draftKey.value = ''
+  draftNoticeText.value = ''
 }
 
 watch(open, (value) => {
   if (!value) {
     draftKey.value = ''
+    draftNoticeText.value = ''
   }
 })
 </script>
@@ -69,6 +74,18 @@ watch(open, (value) => {
               autocomplete="off"
               spellcheck="false"
               placeholder="PDU..."
+            >
+          </label>
+
+          <label class="settings-field">
+            <span>注意事项</span>
+            <input
+              v-model.trim="draftNoticeText"
+              class="settings-input"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="做T操作提醒"
             >
           </label>
 

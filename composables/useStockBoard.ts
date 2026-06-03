@@ -76,6 +76,7 @@ export type ActiveReminder = {
 export type NotificationSettings = {
   enabled: boolean
   pushDeerKey: string
+  noticeText: string
   activeReminders: Record<string, ActiveReminder>
 }
 
@@ -177,6 +178,7 @@ const defaultBoardPayload = (): BoardPayload => ({
   notifications: {
     enabled: true,
     pushDeerKey: '',
+    noticeText: '',
     activeReminders: {}
   }
 })

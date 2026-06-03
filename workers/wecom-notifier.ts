@@ -41,6 +41,7 @@ type ActiveReminder = {
 type NotificationSettings = {
   enabled: boolean
   pushDeerKey: string
+  noticeText: string
   activeReminders: Record<string, ActiveReminder>
 }
 
@@ -84,7 +85,7 @@ type PushDeerResponse = {
 type ReminderSummaryItem = {
   stockName: string
   quote: QuoteSnapshot | undefined
-  triggerPrices: Array<number | null>
+  triggerLabels: string[]
 }
 
 const REPEAT_MS = 3 * 60 * 1000
@@ -128,6 +129,7 @@ const stockFingerprint = (stock: StockCard) =>
     name: stock.name.trim(),
     code: normalizeCode(stock.code),
     buyEntries: stock.buyEntries.map((entry) => ({
+      id: entry.id,
       buyPrice: entry.buyPrice,
       targetRate: entry.targetRate,
       lots: entry.lots
@@ -200,6 +202,7 @@ const normalizeNotifications = (input: any): NotificationSettings => {
   return {
     enabled: typeof input?.enabled === 'boolean' ? input.enabled : true,
     pushDeerKey: typeof input?.pushDeerKey === 'string' ? input.pushDeerKey : '',
+    noticeText: typeof input?.noticeText === 'string' ? input.noticeText : '',
     activeReminders
   }
 }
@@ -386,6 +389,7 @@ const reconcileNotifications = (payload: BoardPayload, quotes: Record<string, Qu
   const next: NotificationSettings = {
     enabled: current.enabled,
     pushDeerKey: current.pushDeerKey,
+    noticeText: current.noticeText,
     activeReminders: {}
   }
   const pushDeerKey = current.pushDeerKey.trim()
@@ -484,12 +488,28 @@ const formatTriggerPrices = (prices: Array<number | null>) => {
     .join(' / ')
 }
 
+const formatTriggerLabel = (price: number | null, percent: number | null) => {
+  const priceText = formatPrice(price)
+  const percentText = percent === null ? '' : `（${formatPercent(percent)}）`
+  return `${priceText}${percentText}`
+}
+
+const formatTriggerLabels = (labels: string[]) => {
+  const unique = [...new Set(labels.filter((label) => label.trim().length > 0))]
+  return unique.length ? unique.join(' / ') : '--'
+}
+
 const buildBatchMessageTitle = (reminders: ActiveReminder[]) => {
   const stockCount = new Set(reminders.map((reminder) => reminder.stockId)).size
   return `做T操作提醒（${stockCount}只）`
 }
 
-const buildBatchMessageBody = (reminders: ActiveReminder[], quotes: Record<string, QuoteSnapshot>, now: Date) => {
+const buildBatchMessageBody = (
+  reminders: ActiveReminder[],
+  quotes: Record<string, QuoteSnapshot>,
+  now: Date,
+  noticeText: string
+) => {
   const buyMap = new Map<string, ReminderSummaryItem>()
   const sellMap = new Map<string, ReminderSummaryItem>()
 
@@ -497,21 +517,39 @@ const buildBatchMessageBody = (reminders: ActiveReminder[], quotes: Record<strin
     const quote = quotes[normalizeCode(reminder.stockCode)]
     const targetMap = reminder.kind === 'dip' ? buyMap : sellMap
     const current = targetMap.get(reminder.stockId)
+    let percent: number | null = null
+
+    try {
+      const snapshot = JSON.parse(reminder.stockFingerprint) as {
+        buyEntries?: Array<{ id?: string, targetRate?: number }>
+        dipAlerts?: Array<{ id?: string, dropRate?: number }>
+      }
+
+      if (reminder.kind === 'dip') {
+        percent = snapshot.dipAlerts?.find((alert) => alert.id === reminder.triggerId)?.dropRate ?? null
+      } else {
+        percent = snapshot.buyEntries?.find((entry) => entry.id === reminder.triggerId)?.targetRate ?? null
+      }
+    } catch {
+      percent = null
+    }
+
+    const triggerLabel = formatTriggerLabel(reminder.triggerPrice, percent)
 
     if (current) {
-      current.triggerPrices.push(reminder.triggerPrice)
+      current.triggerLabels.push(triggerLabel)
       continue
     }
 
     targetMap.set(reminder.stockId, {
       stockName: reminder.stockName,
       quote,
-      triggerPrices: [reminder.triggerPrice]
+      triggerLabels: [triggerLabel]
     })
   }
 
   const body: string[] = [
-    '# 做T操作提醒',
+    `# ${noticeText.trim() || '做T操作提醒'}`,
     `> ${now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`
   ]
 
@@ -520,7 +558,7 @@ const buildBatchMessageBody = (reminders: ActiveReminder[], quotes: Record<strin
 
     for (const item of [...buyMap.values()].sort((left, right) => left.stockName.localeCompare(right.stockName, 'zh-CN'))) {
       body.push(
-        `- ${item.stockName}：现价 ${formatPrice(item.quote?.price ?? null)}（${formatPercent(item.quote?.changePercent ?? null)}），参考买入 ${formatTriggerPrices(item.triggerPrices)}`
+        `- ${item.stockName}：现价 ${formatPrice(item.quote?.price ?? null)}（${formatPercent(item.quote?.changePercent ?? null)}），参考买入 ${formatTriggerLabels(item.triggerLabels)}`
       )
     }
   }
@@ -530,7 +568,7 @@ const buildBatchMessageBody = (reminders: ActiveReminder[], quotes: Record<strin
 
     for (const item of [...sellMap.values()].sort((left, right) => left.stockName.localeCompare(right.stockName, 'zh-CN'))) {
       body.push(
-        `- ${item.stockName}：现价 ${formatPrice(item.quote?.price ?? null)}（${formatPercent(item.quote?.changePercent ?? null)}），参考卖出 ${formatTriggerPrices(item.triggerPrices)}`
+        `- ${item.stockName}：现价 ${formatPrice(item.quote?.price ?? null)}（${formatPercent(item.quote?.changePercent ?? null)}），参考卖出 ${formatTriggerLabels(item.triggerLabels)}`
       )
     }
   }
@@ -560,7 +598,11 @@ const processBoard = async (env: Env, row: BoardRow, quotes: Record<string, Quot
     const activeReminders = Object.values(next.activeReminders)
 
     try {
-      await sendPushDeerMessage(pushDeerKey, buildBatchMessageTitle(activeReminders), buildBatchMessageBody(activeReminders, quotes, now))
+      await sendPushDeerMessage(
+        pushDeerKey,
+        buildBatchMessageTitle(activeReminders),
+        buildBatchMessageBody(activeReminders, quotes, now, next.noticeText)
+      )
 
       for (const reminder of activeReminders) {
         next.activeReminders[reminder.key].lastSentAt = now.toISOString()
