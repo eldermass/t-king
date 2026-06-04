@@ -129,6 +129,10 @@ input {
   margin-bottom: 16px;
 }
 
+.settings-modal-head .ghost-btn {
+  flex: 0 0 auto;
+}
+
 .settings-modal-head h2 {
   margin: 0;
   font-size: 1.12rem;
@@ -194,6 +198,7 @@ input {
   border: 0;
   border-radius: 999px;
   cursor: pointer;
+  white-space: nowrap;
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
@@ -865,10 +870,14 @@ td input:focus {
 .h5-toolbar-actions {
   justify-content: flex-end;
   flex-shrink: 0;
+  flex-wrap: nowrap;
+  min-width: max-content;
 }
 
 .h5-toolbar-actions .primary-btn,
-.h5-toolbar-actions .ghost-btn {
+.h5-toolbar-actions .ghost-btn,
+.h5-toolbar-actions .settings-trigger {
+  flex: 0 0 auto;
   padding: 7px 11px;
   font-size: 0.86rem;
 }
