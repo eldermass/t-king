@@ -50,6 +50,74 @@ const emptyDevDatabase = (): DevDatabase => ({
   boards: []
 })
 
+const extractLeadingJsonObject = (raw: string) => {
+  const start = raw.search(/\S/)
+
+  if (start === -1 || raw[start] !== '{') {
+    return null
+  }
+
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  for (let index = start; index < raw.length; index += 1) {
+    const char = raw[index]
+
+    if (inString) {
+      if (escaped) {
+        escaped = false
+      } else if (char === '\\') {
+        escaped = true
+      } else if (char === '"') {
+        inString = false
+      }
+
+      continue
+    }
+
+    if (char === '"') {
+      inString = true
+      continue
+    }
+
+    if (char === '{') {
+      depth += 1
+      continue
+    }
+
+    if (char === '}') {
+      depth -= 1
+
+      if (depth === 0) {
+        return raw.slice(start, index + 1)
+      }
+    }
+  }
+
+  return null
+}
+
+const parseDevDatabase = (raw: string) => {
+  try {
+    return {
+      parsed: JSON.parse(raw) as Partial<DevDatabase>,
+      repaired: false
+    }
+  } catch (error) {
+    const recovered = extractLeadingJsonObject(raw)
+
+    if (!recovered) {
+      throw error
+    }
+
+    return {
+      parsed: JSON.parse(recovered) as Partial<DevDatabase>,
+      repaired: true
+    }
+  }
+}
+
 const getCloudflareDb = (event: H3Event): DbLike | null => {
   const binding = (event.context.cloudflare?.env as Record<string, unknown> | undefined)?.DB
 
@@ -63,13 +131,18 @@ const getCloudflareDb = (event: H3Event): DbLike | null => {
 const readDevDatabase = async (): Promise<DevDatabase> => {
   try {
     const raw = await readFile(DEV_DB_PATH, 'utf8')
-    const parsed = JSON.parse(raw) as Partial<DevDatabase>
-
-    return {
+    const { parsed, repaired } = parseDevDatabase(raw)
+    const normalized = {
       users: Array.isArray(parsed.users) ? parsed.users : [],
       sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
       boards: Array.isArray(parsed.boards) ? parsed.boards : []
     }
+
+    if (repaired) {
+      await writeDevDatabase(normalized)
+    }
+
+    return normalized
   } catch (error: any) {
     if (error?.code === 'ENOENT') {
       return emptyDevDatabase()
