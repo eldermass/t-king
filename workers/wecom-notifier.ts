@@ -59,6 +59,7 @@ type QuoteSnapshot = {
 
 type Env = {
   DB: D1Database
+  NOTIFIER_RUN_TOKEN?: string
 }
 
 type BoardRow = {
@@ -88,7 +89,38 @@ type ReminderSummaryItem = {
   triggerLabels: string[]
 }
 
-const REPEAT_MS = 3 * 60 * 1000
+type PagesQuoteSnapshot = {
+  name?: string
+  price: number | null
+  previousClose?: number | null
+  change?: number | null
+  changePercent: number | null
+  updatedAt?: string | null
+}
+
+type PagesQuoteResponse = Record<string, PagesQuoteSnapshot>
+
+type NotifierSummary = {
+  boards: number
+  quotes: number
+  quoteReady: number
+  quoteMissing: number
+  changedBoards: number
+  activeReminders: number
+  dueReminders: number
+}
+
+type NotifierRunRow = {
+  id: number
+  source: string
+  status: string
+  summary_json: string | null
+  error_message: string | null
+  created_at: string
+}
+
+const REPEAT_MS = 2 * 60 * 1000
+const ENFORCE_TRADING_WINDOW = false
 
 const normalizeCode = (code: string) => code.trim().replace(/[^\d]/g, '').slice(0, 6)
 const isValidCode = (code: string) => /^(0|3|6)\d{5}$/.test(code)
@@ -255,6 +287,44 @@ const emptyQuote = (code: string): QuoteSnapshot => ({
   changePercent: null
 })
 
+const fetchPagesQuotes = async (codes: string[]) => {
+  if (!codes.length) {
+    return {}
+  }
+
+  try {
+    const response = await fetch(`https://t-king.pages.dev/api/quotes?codes=${codes.join(',')}`, {
+      headers: {
+        accept: 'application/json',
+        'user-agent': 'Mozilla/5.0'
+      },
+      signal: AbortSignal.timeout(5000)
+    })
+
+    if (!response.ok) {
+      throw new Error(`Pages quotes request failed: ${response.status}`)
+    }
+
+    const json = await response.json() as PagesQuoteResponse
+    const result: Record<string, QuoteSnapshot> = {}
+
+    for (const code of codes) {
+      const item = json[code]
+
+      result[code] = {
+        name: item?.name?.trim() || code,
+        price: typeof item?.price === 'number' ? item.price : null,
+        changePercent: typeof item?.changePercent === 'number' ? item.changePercent : null
+      }
+    }
+
+    return result
+  } catch (error) {
+    console.log('pages quote fetch failed', error)
+    return {}
+  }
+}
+
 const fetchEastmoneyQuote = async (code: string): Promise<QuoteSnapshot> => {
   let lastError: unknown = null
 
@@ -342,14 +412,21 @@ const fetchSinaFallbackQuotes = async (codes: string[]) => {
 
 const fetchQuotes = async (codes: string[]) => {
   const normalizedCodes = [...new Set(codes.map(normalizeCode).filter(isValidCode))]
+  const pagesQuotes = await fetchPagesQuotes(normalizedCodes)
+  const fallbackCodes = normalizedCodes.filter((code) => pagesQuotes[code]?.price == null)
+
+  if (!fallbackCodes.length) {
+    return pagesQuotes
+  }
+
   const eastmoneyEntries = await Promise.all(
-    normalizedCodes.map(async (code) => [code, await fetchEastmoneyQuote(code)] as const)
+    fallbackCodes.map(async (code) => [code, await fetchEastmoneyQuote(code)] as const)
   )
   const eastmoneyQuotes = Object.fromEntries(eastmoneyEntries) as Record<string, QuoteSnapshot>
-  const fallbackCodes = normalizedCodes.filter((code) => eastmoneyQuotes[code]?.price === null)
-  const sinaQuotes = await fetchSinaFallbackQuotes(fallbackCodes)
+  const sinaFallbackCodes = fallbackCodes.filter((code) => eastmoneyQuotes[code]?.price === null)
+  const sinaQuotes = await fetchSinaFallbackQuotes(sinaFallbackCodes)
 
-  for (const code of fallbackCodes) {
+  for (const code of sinaFallbackCodes) {
     const fallbackQuote = sinaQuotes[code]
 
     if (fallbackQuote?.price !== null && fallbackQuote?.price !== undefined) {
@@ -362,7 +439,10 @@ const fetchQuotes = async (codes: string[]) => {
     }
   }
 
-  return eastmoneyQuotes
+  return {
+    ...pagesQuotes,
+    ...eastmoneyQuotes
+  }
 }
 
 const createReminder = (
@@ -425,7 +505,7 @@ const reconcileNotifications = (payload: BoardPayload, quotes: Record<string, Qu
     }
   }
 
-  const due = !next.enabled || !isTradingTime(now)
+  const due = !next.enabled || (ENFORCE_TRADING_WINDOW && !isTradingTime(now))
     ? []
     : Object.values(next.activeReminders).filter((reminder) => {
         if (!reminder.lastSentAt) {
@@ -583,16 +663,17 @@ const processBoard = async (env: Env, row: BoardRow, quotes: Record<string, Quot
     parsed = normalizePayload(JSON.parse(row.payload))
   } catch (error) {
     console.log(`board payload parse failed for ${row.user_id}`, error)
-    return
+    return { changed: false, reminders: 0, due: 0 }
   }
 
   if (!parsed) {
-    return
+    return { changed: false, reminders: 0, due: 0 }
   }
 
   const { next, due } = reconcileNotifications(parsed, quotes, now)
   let changed = JSON.stringify(parsed.notifications ?? {}) !== JSON.stringify(next)
   const pushDeerKey = next.pushDeerKey.trim()
+  const reminderCount = Object.keys(next.activeReminders).length
 
   if (due.length && pushDeerKey) {
     const activeReminders = Object.values(next.activeReminders)
@@ -615,7 +696,7 @@ const processBoard = async (env: Env, row: BoardRow, quotes: Record<string, Quot
   }
 
   if (!changed) {
-    return
+    return { changed: false, reminders: reminderCount, due: due.length }
   }
 
   const nextPayload: BoardPayload = {
@@ -627,6 +708,51 @@ const processBoard = async (env: Env, row: BoardRow, quotes: Record<string, Quot
     .prepare('INSERT OR REPLACE INTO boards (user_id, payload, updated_at) VALUES (?, ?, ?)')
     .bind(row.user_id, JSON.stringify(nextPayload), now.toISOString())
     .run()
+
+  return { changed: true, reminders: reminderCount, due: due.length }
+}
+
+const ensureRunLogTable = async (env: Env) => {
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS notifier_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source TEXT NOT NULL,
+      status TEXT NOT NULL,
+      summary_json TEXT,
+      error_message TEXT,
+      created_at TEXT NOT NULL
+    )
+  `).run()
+}
+
+const logNotifierRun = async (
+  env: Env,
+  source: 'scheduled' | 'manual',
+  status: 'success' | 'failed',
+  createdAt: string,
+  summary?: NotifierSummary,
+  error?: unknown
+) => {
+  await ensureRunLogTable(env)
+
+  const errorMessage = error instanceof Error
+    ? error.message
+    : typeof error === 'string'
+      ? error
+      : error
+        ? JSON.stringify(error)
+        : null
+
+  await env.DB
+    .prepare('INSERT INTO notifier_runs (source, status, summary_json, error_message, created_at) VALUES (?, ?, ?, ?, ?)')
+    .bind(
+      source,
+      status,
+      summary ? JSON.stringify(summary) : null,
+      errorMessage,
+      createdAt
+    )
+    .run()
 }
 
 const runNotifier = async (env: Env) => {
@@ -634,7 +760,15 @@ const runNotifier = async (env: Env) => {
   const rows = result.results ?? []
 
   if (!rows.length) {
-    return { boards: 0, reminders: 0 }
+    return {
+      boards: 0,
+      quotes: 0,
+      quoteReady: 0,
+      quoteMissing: 0,
+      changedBoards: 0,
+      activeReminders: 0,
+      dueReminders: 0
+    }
   }
 
   const codes = rows.flatMap((row) => {
@@ -648,12 +782,84 @@ const runNotifier = async (env: Env) => {
 
   const quotes = await fetchQuotes(codes)
   const now = new Date()
+  let changedBoards = 0
+  let activeReminderCount = 0
+  let dueReminderCount = 0
+
+  const quoteReadyCount = Object.values(quotes).filter((quote) => quote.price !== null).length
+  const quoteMissingCount = Object.values(quotes).filter((quote) => quote.price === null).length
 
   for (const row of rows) {
-    await processBoard(env, row, quotes, now)
+    const summary = await processBoard(env, row, quotes, now)
+
+    if (summary.changed) {
+      changedBoards += 1
+    }
+
+    activeReminderCount += summary.reminders
+    dueReminderCount += summary.due
   }
 
-  return { boards: rows.length, quotes: Object.keys(quotes).length }
+  return {
+    boards: rows.length,
+    quotes: Object.keys(quotes).length,
+    quoteReady: quoteReadyCount,
+    quoteMissing: quoteMissingCount,
+    changedBoards,
+    activeReminders: activeReminderCount,
+    dueReminders: dueReminderCount
+  }
+}
+
+const runNotifierWithHeartbeat = async (env: Env, source: 'scheduled' | 'manual') => {
+  const createdAt = new Date().toISOString()
+
+  try {
+    const summary = await runNotifier(env)
+    await logNotifierRun(env, source, 'success', createdAt, summary)
+    return summary
+  } catch (error) {
+    await logNotifierRun(env, source, 'failed', createdAt, undefined, error)
+    throw error
+  }
+}
+
+const getRunStatus = async (env: Env) => {
+  await ensureRunLogTable(env)
+  const result = await env.DB
+    .prepare('SELECT id, source, status, summary_json, error_message, created_at FROM notifier_runs ORDER BY id DESC LIMIT 10')
+    .all<NotifierRunRow>()
+
+  return (result.results ?? []).map((row) => ({
+    id: row.id,
+    source: row.source,
+    status: row.status,
+    summary: row.summary_json ? JSON.parse(row.summary_json) : null,
+    error: row.error_message,
+    createdAt: row.created_at
+  }))
+}
+
+const unauthorizedResponse = () =>
+  new Response(JSON.stringify({ ok: false, message: 'Unauthorized' }), {
+    status: 401,
+    headers: {
+      'content-type': 'application/json'
+    }
+  })
+
+const isAuthorizedRunRequest = (request: Request, env: Env) => {
+  const token = env.NOTIFIER_RUN_TOKEN?.trim()
+
+  if (!token) {
+    return true
+  }
+
+  const url = new URL(request.url)
+  const bearer = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim()
+  const queryToken = url.searchParams.get('token')?.trim()
+
+  return bearer === token || queryToken === token
 }
 
 export default {
@@ -661,8 +867,25 @@ export default {
     const url = new URL(request.url)
 
     if (url.pathname === '/__run') {
-      const summary = await runNotifier(env)
+      if (!isAuthorizedRunRequest(request, env)) {
+        return unauthorizedResponse()
+      }
+
+      const summary = await runNotifierWithHeartbeat(env, 'manual')
       return new Response(JSON.stringify({ ok: true, ...summary }), {
+        headers: {
+          'content-type': 'application/json'
+        }
+      })
+    }
+
+    if (url.pathname === '/__status') {
+      if (!isAuthorizedRunRequest(request, env)) {
+        return unauthorizedResponse()
+      }
+
+      const runs = await getRunStatus(env)
+      return new Response(JSON.stringify({ ok: true, runs }), {
         headers: {
           'content-type': 'application/json'
         }
@@ -672,6 +895,6 @@ export default {
     return new Response('t-king notifier ready')
   },
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(runNotifier(env))
+    ctx.waitUntil(runNotifierWithHeartbeat(env, 'scheduled'))
   }
 }

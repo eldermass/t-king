@@ -1,0 +1,31 @@
+name: Trigger PushDeer Notifier
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Call notifier worker
+        env:
+          NOTIFIER_URL: ${{ secrets.NOTIFIER_URL }}
+          NOTIFIER_RUN_TOKEN: ${{ secrets.NOTIFIER_RUN_TOKEN }}
+        run: |
+          if [ -z "$NOTIFIER_URL" ]; then
+            echo "NOTIFIER_URL secret is missing"
+            exit 1
+          fi
+
+          if [ -z "$NOTIFIER_RUN_TOKEN" ]; then
+            echo "NOTIFIER_RUN_TOKEN secret is missing"
+            exit 1
+          fi
+
+          curl --fail --show-error --silent \
+            -H "Authorization: Bearer $NOTIFIER_RUN_TOKEN" \
+            "$NOTIFIER_URL/__run"
