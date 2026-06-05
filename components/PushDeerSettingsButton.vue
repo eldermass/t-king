@@ -25,7 +25,14 @@ const closeDialog = () => {
 }
 
 const saveSettings = () => {
-  notificationSettings.value.pushDeerKey = draftKey.value.trim()
+  const nextKey = draftKey.value.trim()
+  const previousKey = notificationSettings.value.pushDeerKey.trim()
+
+  if (nextKey !== previousKey) {
+    notificationSettings.value.activeReminders = {}
+  }
+
+  notificationSettings.value.pushDeerKey = nextKey
   notificationSettings.value.noticeText = draftNoticeText.value.trim()
   open.value = false
 }
