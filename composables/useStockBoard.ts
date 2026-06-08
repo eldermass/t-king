@@ -80,6 +80,15 @@ export type NotificationSettings = {
   activeReminders: Record<string, ActiveReminder>
 }
 
+import {
+  dipPrice,
+  evaluateStockTriggers,
+  minimumSellPrice,
+  normalizeCode,
+  plannedSellPrice,
+  referencePrice
+} from '~/shared/reminder-core'
+
 type BoardPayload = {
   stocks: StockCard[]
   alerts: Record<string, AlertState>
@@ -245,36 +254,7 @@ export const useStockBoard = () => {
     return `${sign}${value.toFixed(2)}%`
   }
 
-  const normalizeCode = (code: string) => code.trim().replace(/[^\d]/g, '').slice(0, 6)
   const isValidCode = (code: string) => /^(0|3|6)\d{5}$/.test(normalizeCode(code))
-
-  const plannedSellPrice = (entry: BuyEntry) => {
-    if (entry.buyPrice === null || entry.buyPrice <= 0) {
-      return null
-    }
-
-    return roundPrice(entry.buyPrice * (1 + entry.targetRate / 100))
-  }
-
-  const dipPrice = (basePrice: number | null, dropRate: number) => {
-    if (basePrice === null || basePrice <= 0) {
-      return null
-    }
-
-    return roundPrice(basePrice * (1 + dropRate / 100))
-  }
-
-  const referencePrice = (stock: StockCard) => {
-    const initialEntry = stock.buyEntries[0]
-
-    if (initialEntry?.buyPrice !== null && initialEntry?.buyPrice !== undefined && initialEntry.buyPrice > 0) {
-      return initialEntry.buyPrice
-    }
-
-    const firstValidEntry = stock.buyEntries.find((entry) => entry.buyPrice !== null && entry.buyPrice > 0)
-
-    return firstValidEntry?.buyPrice ?? null
-  }
 
   const nextDipAlertRate = (stock: StockCard) => {
     const rates = stock.dipAlerts
@@ -312,18 +292,6 @@ export const useStockBoard = () => {
     const alert = selectedRecommendedDipAlert(stock)
 
     return dipPrice(referencePrice(stock), alert?.dropRate ?? RECOMMENDED_ADD_RATE)
-  }
-
-  const minimumSellPrice = (stock: StockCard) => {
-    const prices = stock.buyEntries
-      .map((entry) => plannedSellPrice(entry))
-      .filter((price): price is number => price !== null && price > 0)
-
-    if (!prices.length) {
-      return null
-    }
-
-    return Math.min(...prices)
   }
 
   const syncEntryLots = (entry: BuyEntry) => {
@@ -604,34 +572,6 @@ export const useStockBoard = () => {
     return `${formatPrice(quote.price)} ${formatPercent(quote.changePercent)}`
   }
 
-  const redAlertLevel = (stock: StockCard, price: number) => {
-    const basePrice = referencePrice(stock)
-
-    if (basePrice === null) {
-      return 0 as const
-    }
-
-    let nextLevel: 0 | 1 | 2 | 3 = 0
-
-    for (const alert of stock.dipAlerts) {
-      const triggerPrice = dipPrice(basePrice, alert.dropRate)
-
-      if (triggerPrice === null || price > triggerPrice) {
-        continue
-      }
-
-      if (alert.dropRate <= -7) {
-        nextLevel = Math.max(nextLevel, 3) as 0 | 1 | 2 | 3
-      } else if (alert.dropRate <= -4) {
-        nextLevel = Math.max(nextLevel, 2) as 0 | 1 | 2 | 3
-      } else if (alert.dropRate <= -3) {
-        nextLevel = Math.max(nextLevel, 1) as 0 | 1 | 2 | 3
-      }
-    }
-
-    return nextLevel
-  }
-
   const evaluateAlerts = () => {
     const nextStates: Record<string, AlertState> = { ...alertStates.value }
     let changed = false
@@ -665,34 +605,14 @@ export const useStockBoard = () => {
         continue
       }
 
-      const nextRedLevel = redAlertLevel(stock, quote.price)
-      const sellFloor = minimumSellPrice(stock)
-      const greenTriggered = sellFloor !== null && quote.price >= sellFloor
-      const triggeredDipAlertIds: string[] = []
-      const triggeredSellEntryIds: string[] = []
-
-      for (const alert of stock.dipAlerts) {
-        const triggerPrice = dipPrice(referencePrice(stock), alert.dropRate)
-
-        if (triggerPrice !== null && quote.price <= triggerPrice) {
-          triggeredDipAlertIds.push(alert.id)
-        }
-      }
-
-      for (const entry of stock.buyEntries) {
-        const triggerPrice = plannedSellPrice(entry)
-
-        if (triggerPrice !== null && quote.price >= triggerPrice) {
-          triggeredSellEntryIds.push(entry.id)
-        }
-      }
+      const evaluation = evaluateStockTriggers(stock, quote.price)
 
       const updated: AlertState = {
         fingerprint: nextFingerprint,
-        redLevel: nextRedLevel,
-        greenActive: greenTriggered,
-        triggeredDipAlertIds,
-        triggeredSellEntryIds
+        redLevel: evaluation.redLevel,
+        greenActive: evaluation.greenActive,
+        triggeredDipAlertIds: evaluation.triggeredDipAlerts.map((alert) => alert.id),
+        triggeredSellEntryIds: evaluation.triggeredSellEntries.map((entry) => entry.id)
       }
 
       nextStates[stock.id] = updated

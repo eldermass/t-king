@@ -1,11 +1,15 @@
 import type { ActiveReminder, AlertState, BoardPayload, NotificationSettings, ReminderKind, StockCard } from '~/composables/useStockBoard'
 import type { QuoteSnapshot } from '~/server/utils/quotes'
+import {
+  dipPrice,
+  evaluateStockTriggers,
+  normalizeCode,
+  plannedSellPrice,
+  referencePrice
+} from '~/shared/reminder-core'
 
 const RECOMMENDED_ADD_RATE = -4
 const REMINDER_REPEAT_MS = 5 * 60 * 1000
-
-const roundPrice = (value: number) => Math.round(value * 10000) / 10000
-const normalizeCode = (code: string) => code.trim().replace(/[^\d]/g, '').slice(0, 6)
 
 const stockFingerprint = (stock: StockCard) =>
   JSON.stringify({
@@ -23,34 +27,6 @@ const stockFingerprint = (stock: StockCard) =>
       dropRate: alert.dropRate
     }))
   })
-
-export const plannedSellPrice = (entry: StockCard['buyEntries'][number]) => {
-  if (entry.buyPrice === null || entry.buyPrice <= 0) {
-    return null
-  }
-
-  return roundPrice(entry.buyPrice * (1 + entry.targetRate / 100))
-}
-
-export const referencePrice = (stock: StockCard) => {
-  const initialEntry = stock.buyEntries[0]
-
-  if (initialEntry?.buyPrice !== null && initialEntry?.buyPrice !== undefined && initialEntry.buyPrice > 0) {
-    return initialEntry.buyPrice
-  }
-
-  const firstValidEntry = stock.buyEntries.find((entry) => entry.buyPrice !== null && entry.buyPrice > 0)
-
-  return firstValidEntry?.buyPrice ?? null
-}
-
-export const dipPrice = (basePrice: number | null, dropRate: number) => {
-  if (basePrice === null || basePrice <= 0) {
-    return null
-  }
-
-  return roundPrice(basePrice * (1 + dropRate / 100))
-}
 
 const stockDisplayName = (stock: StockCard, quote: QuoteSnapshot | undefined) =>
   stock.name.trim() || quote?.name?.trim() || normalizeCode(stock.code) || '未命名股票'
@@ -133,25 +109,18 @@ export const buildTriggeredReminders = (payload: BoardPayload, quotes: Record<st
   for (const stock of payload.stocks) {
     const code = normalizeCode(stock.code)
     const quote = quotes[code]
+    const evaluation = evaluateStockTriggers(stock, quote?.price)
 
     if (!quote || quote.price === null) {
       continue
     }
 
-    for (const alert of stock.dipAlerts) {
-      const triggerPrice = dipPrice(referencePrice(stock), alert.dropRate)
-
-      if (triggerPrice !== null && quote.price <= triggerPrice) {
-        reminders.push(createReminder('dip', stock, quote, alert.id, triggerPrice))
-      }
+    for (const alert of evaluation.triggeredDipAlerts) {
+      reminders.push(createReminder('dip', stock, quote, alert.id, alert.triggerPrice))
     }
 
-    for (const entry of stock.buyEntries) {
-      const triggerPrice = plannedSellPrice(entry)
-
-      if (triggerPrice !== null && quote.price >= triggerPrice) {
-        reminders.push(createReminder('sell', stock, quote, entry.id, triggerPrice))
-      }
+    for (const entry of evaluation.triggeredSellEntries) {
+      reminders.push(createReminder('sell', stock, quote, entry.id, entry.triggerPrice))
     }
   }
 
