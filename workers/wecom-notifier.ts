@@ -580,8 +580,23 @@ const formatTriggerLabels = (labels: string[]) => {
 }
 
 const buildBatchMessageTitle = (reminders: ActiveReminder[]) => {
-  const stockCount = new Set(reminders.map((reminder) => reminder.stockId)).size
-  return `做T操作提醒（${stockCount}只）`
+  const titleMap = new Map<string, Set<'买入' | '卖出'>>()
+
+  for (const reminder of reminders) {
+    const stockName = reminder.stockName.trim() || normalizeCode(reminder.stockCode)
+    const action = reminder.kind === 'dip' ? '买入' : '卖出'
+    const actions = titleMap.get(stockName) ?? new Set<'买入' | '卖出'>()
+
+    actions.add(action)
+    titleMap.set(stockName, actions)
+  }
+
+  const parts = [...titleMap.entries()].map(([stockName, actions]) => {
+    const actionText = [...actions].join('/')
+    return `${stockName} ${actionText}`
+  })
+
+  return parts.length ? parts.join('，') : '做T操作提醒'
 }
 
 const buildBatchMessageBody = (
