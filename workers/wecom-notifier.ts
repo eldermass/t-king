@@ -141,6 +141,12 @@ const plannedSellPrice = (entry: BuyEntry) => {
 }
 
 const referencePrice = (stock: StockCard) => {
+  const initialEntry = stock.buyEntries[0]
+
+  if (initialEntry?.buyPrice !== null && initialEntry?.buyPrice !== undefined && initialEntry.buyPrice > 0) {
+    return initialEntry.buyPrice
+  }
+
   const firstValidEntry = stock.buyEntries.find((entry) => entry.buyPrice !== null && entry.buyPrice > 0)
 
   return firstValidEntry?.buyPrice ?? null
