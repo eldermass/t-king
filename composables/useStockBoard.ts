@@ -283,6 +283,13 @@ export const useStockBoard = () => {
     return Math.min(minRate - DEFAULT_DIP_INTERVAL, -DEFAULT_DIP_INTERVAL)
   }
 
+  const shiftDipAlerts = (stock: StockCard, delta: number) => {
+    stock.dipAlerts = stock.dipAlerts.map((alert) => ({
+      ...alert,
+      dropRate: Math.min(alert.dropRate + delta, -DEFAULT_DIP_INTERVAL)
+    }))
+  }
+
   const selectedRecommendedDipAlert = (stock: StockCard) => {
     const manualAlert = stock.recommendedDipAlertId
       ? stock.dipAlerts.find((alert) => alert.id === stock.recommendedDipAlertId)
@@ -1062,6 +1069,7 @@ export const useStockBoard = () => {
 
   const addBuyEntry = (stock: StockCard) => {
     stock.buyEntries.push(createBuyEntry(null, 3, null, ADD_POSITION_BUDGET))
+    shiftDipAlerts(stock, -DEFAULT_DIP_INTERVAL)
   }
 
   const removeBuyEntry = (stock: StockCard, entryId: string) => {
@@ -1074,6 +1082,7 @@ export const useStockBoard = () => {
     }
 
     stock.buyEntries = stock.buyEntries.filter((entry) => entry.id !== entryId)
+    shiftDipAlerts(stock, DEFAULT_DIP_INTERVAL)
   }
 
   const addDipAlert = (stock: StockCard) => {
@@ -1082,10 +1091,6 @@ export const useStockBoard = () => {
 
   const removeDipAlert = (stock: StockCard, alertId: string) => {
     if (stock.dipAlerts.length === 1) {
-      return
-    }
-
-    if (!confirmDelete('确认删除这条补仓提醒吗？')) {
       return
     }
 
