@@ -1,59 +1,73 @@
-# Cloudflare Pages 部署说明
+# Cloudflare Pages Deployment
 
-项目已配置为 Nuxt + Nitro 的 `cloudflare_pages` 目标。
+This project is configured for Nuxt + Nitro with the `cloudflare_pages` preset.
 
-## Pages 配置
+## Pages
 
 - Framework preset: `Nuxt`
 - Production branch: `master`
 - Build command: `npm run build:pages`
 - Build output directory: `dist`
 
-## Node 版本
+## Node Version
 
-建议在 Cloudflare Pages 的环境变量里设置：
+Set this in Cloudflare Pages:
+
 - `NODE_VERSION=20`
 
-同时在 Cloudflare Pages 项目设置中打开：
+Also enable:
+
 - `Node.js compatibility`
 
-## 首次部署
+## Initial Deployment
 
-1. 在 Cloudflare Pages 中选择 `Connect to Git`
-2. 连接 GitHub 仓库 `eldermass/t-king`
-3. 按上面的构建参数填写
-4. 点击 `Save and Deploy`
+1. In Cloudflare Pages, choose `Connect to Git`
+2. Connect the GitHub repository `eldermass/t-king`
+3. Use the build settings above
+4. Save and deploy
 
-## 说明
+## Notes
 
-- 服务端接口会跟随 Nuxt 一起部署到 Cloudflare Pages Functions
-- 行情和个股资料接口仍然实时请求东方财富公开接口
+- The Nuxt server routes deploy with Pages Functions
+- Quote and stock profile APIs still fetch upstream data at runtime
 
-## PushDeer 后台提醒
+## PushDeer Notifier Worker
 
-页面站点仍然部署在 Cloudflare Pages，但“页面没打开也能提醒”需要额外部署一个 Cloudflare Worker 定时任务。
+The site remains on Cloudflare Pages. Background reminders are handled by a separate Cloudflare Worker.
 
-### 1. 配置 Pages 环境变量
+### Worker
 
-在 Cloudflare Pages 项目 `t-king` 里配置：
-- `PUSHDEER_PUSHKEY`
+- Worker name: `t-king-pushdeer-notifier-v`
+- Worker config file: `wrangler.wecom.toml`
 
-### 2. 配置 Worker 环境变量
-
-在 Cloudflare Workers 里为 `t-king-pushdeer-notifier` 配置：
-- `PUSHDEER_PUSHKEY`
-
-### 3. 部署 Worker
-
-使用仓库里的独立配置文件：
+Deploy with:
 
 ```bash
 npx wrangler deploy --config wrangler.wecom.toml
 ```
 
-### 4. 定时规则
+### Runtime Secret
 
-- Worker 每 5 分钟运行一次
-- 仅周一到周五执行
-- Worker 内部只在北京时间 `09:30-11:30`、`13:00-15:00` 发送提醒
-- 某条提醒触发后会每 5 分钟持续推送，直到你完成操作或价格不再满足条件
+Configure this secret on the worker:
+
+- `NOTIFIER_RUN_TOKEN`
+
+### Trigger via cron-job.org
+
+The worker no longer relies on Cloudflare Cron Triggers. Use `cron-job.org` to call the manual endpoint.
+
+- URL: `https://t-king-pushdeer-notifier-v.a285653184.workers.dev/__run`
+- Method: `GET`
+- Header: `Authorization: Bearer <NOTIFIER_RUN_TOKEN>`
+
+Example:
+
+```bash
+curl -X GET "https://t-king-pushdeer-notifier-v.a285653184.workers.dev/__run" -H "Authorization: Bearer tk-run-20260605-test"
+```
+
+To inspect recent runs:
+
+```bash
+curl -X GET "https://t-king-pushdeer-notifier-v.a285653184.workers.dev/__status" -H "Authorization: Bearer tk-run-20260605-test"
+```
