@@ -90,6 +90,7 @@ export const stockBoardKey = Symbol('stock-board')
 
 const REFRESH_MS = 10_000
 const RECOMMENDED_ADD_RATE = -4
+const DEFAULT_DIP_INTERVAL = 4
 const INITIAL_POSITION_BUDGET = 30_000
 const ADD_POSITION_BUDGET = 10_000
 const DEFAULT_STOCK_NAME = '新股票'
@@ -125,6 +126,12 @@ const createDipAlert = (dropRate = -3): DipAlert => ({
   dropRate
 })
 
+const defaultDipAlerts = () => [
+  createDipAlert(-4),
+  createDipAlert(-8),
+  createDipAlert(-12)
+]
+
 const defaultStocks = (): StockCard[] => [
   {
     id: createId(),
@@ -137,7 +144,7 @@ const defaultStocks = (): StockCard[] => [
     recommendedDipAlertId: null,
     profileInitializedCode: '300088',
     buyEntries: [createBuyEntry(7.85, 3, null, INITIAL_POSITION_BUDGET)],
-    dipAlerts: [createDipAlert(-3), createDipAlert(-4), createDipAlert(-7)]
+    dipAlerts: defaultDipAlerts()
   },
   {
     id: createId(),
@@ -150,7 +157,7 @@ const defaultStocks = (): StockCard[] => [
     recommendedDipAlertId: null,
     profileInitializedCode: '300058',
     buyEntries: [createBuyEntry(17, 3, null, INITIAL_POSITION_BUDGET), createBuyEntry(16.1, 3, null, ADD_POSITION_BUDGET)],
-    dipAlerts: [createDipAlert(-3), createDipAlert(-4), createDipAlert(-7)]
+    dipAlerts: defaultDipAlerts()
   },
   {
     id: createId(),
@@ -168,7 +175,7 @@ const defaultStocks = (): StockCard[] => [
       createBuyEntry(39.8, 3, null, ADD_POSITION_BUDGET),
       createBuyEntry(38.4, 3, null, ADD_POSITION_BUDGET)
     ],
-    dipAlerts: [createDipAlert(-3), createDipAlert(-4), createDipAlert(-7)]
+    dipAlerts: defaultDipAlerts()
   }
 ]
 
@@ -258,15 +265,22 @@ export const useStockBoard = () => {
   }
 
   const referencePrice = (stock: StockCard) => {
-    const prices = stock.buyEntries
-      .map((entry) => entry.buyPrice)
-      .filter((price): price is number => price !== null && price > 0)
+    const firstValidEntry = stock.buyEntries.find((entry) => entry.buyPrice !== null && entry.buyPrice > 0)
 
-    if (!prices.length) {
-      return null
+    return firstValidEntry?.buyPrice ?? null
+  }
+
+  const nextDipAlertRate = (stock: StockCard) => {
+    const rates = stock.dipAlerts
+      .map((alert) => alert.dropRate)
+      .filter((rate) => Number.isFinite(rate))
+
+    if (!rates.length) {
+      return -DEFAULT_DIP_INTERVAL
     }
 
-    return Math.min(...prices)
+    const minRate = Math.min(...rates)
+    return Math.min(minRate - DEFAULT_DIP_INTERVAL, -DEFAULT_DIP_INTERVAL)
   }
 
   const selectedRecommendedDipAlert = (stock: StockCard) => {
@@ -1028,7 +1042,7 @@ export const useStockBoard = () => {
       recommendedDipAlertId: null,
       profileInitializedCode: null,
       buyEntries: [createBuyEntry(null, 3, null, INITIAL_POSITION_BUDGET)],
-      dipAlerts: [createDipAlert(-3), createDipAlert(-4), createDipAlert(-7)]
+      dipAlerts: defaultDipAlerts()
     })
   }
 
@@ -1063,7 +1077,7 @@ export const useStockBoard = () => {
   }
 
   const addDipAlert = (stock: StockCard) => {
-    stock.dipAlerts.push(createDipAlert(-3))
+    stock.dipAlerts.push(createDipAlert(nextDipAlertRate(stock)))
   }
 
   const removeDipAlert = (stock: StockCard, alertId: string) => {

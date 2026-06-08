@@ -33,11 +33,9 @@ export const plannedSellPrice = (entry: StockCard['buyEntries'][number]) => {
 }
 
 export const referencePrice = (stock: StockCard) => {
-  const prices = stock.buyEntries
-    .map((entry) => entry.buyPrice)
-    .filter((price): price is number => price !== null && price > 0)
+  const firstValidEntry = stock.buyEntries.find((entry) => entry.buyPrice !== null && entry.buyPrice > 0)
 
-  return prices.length ? Math.min(...prices) : null
+  return firstValidEntry?.buyPrice ?? null
 }
 
 export const dipPrice = (basePrice: number | null, dropRate: number) => {

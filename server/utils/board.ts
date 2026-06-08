@@ -40,6 +40,12 @@ const createDipAlert = (dropRate = -3): DipAlert => ({
   dropRate
 })
 
+const defaultDipAlerts = () => [
+  createDipAlert(-4),
+  createDipAlert(-8),
+  createDipAlert(-12)
+]
+
 export const defaultBoardPayload = (): BoardPayload => ({
   stocks: [
     {
@@ -53,7 +59,7 @@ export const defaultBoardPayload = (): BoardPayload => ({
       recommendedDipAlertId: null,
       profileInitializedCode: '300088',
       buyEntries: [createBuyEntry(7.85, 3, null, INITIAL_POSITION_BUDGET)],
-      dipAlerts: [createDipAlert(-3), createDipAlert(-4), createDipAlert(-7)]
+      dipAlerts: defaultDipAlerts()
     },
     {
       id: createId(),
@@ -66,7 +72,7 @@ export const defaultBoardPayload = (): BoardPayload => ({
       recommendedDipAlertId: null,
       profileInitializedCode: '300058',
       buyEntries: [createBuyEntry(17, 3, null, INITIAL_POSITION_BUDGET), createBuyEntry(16.1, 3, null, ADD_POSITION_BUDGET)],
-      dipAlerts: [createDipAlert(-3), createDipAlert(-4), createDipAlert(-7)]
+      dipAlerts: defaultDipAlerts()
     },
     {
       id: createId(),
@@ -84,7 +90,7 @@ export const defaultBoardPayload = (): BoardPayload => ({
         createBuyEntry(39.8, 3, null, ADD_POSITION_BUDGET),
         createBuyEntry(38.4, 3, null, ADD_POSITION_BUDGET)
       ],
-      dipAlerts: [createDipAlert(-3), createDipAlert(-4), createDipAlert(-7)]
+      dipAlerts: defaultDipAlerts()
     }
   ],
   alerts: {},
@@ -168,7 +174,7 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
               id: typeof alert.id === 'string' ? alert.id : createId(),
               dropRate: typeof alert.dropRate === 'number' ? alert.dropRate : -3
             }))
-          : [createDipAlert(-3), createDipAlert(-4), createDipAlert(-7)]
+          : defaultDipAlerts()
       }))
     : defaultBoardPayload().stocks
 
