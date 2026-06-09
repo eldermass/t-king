@@ -465,7 +465,7 @@ const reconcileNotifications = (payload: BoardPayload, quotes: Record<string, Qu
     const quote = quotes[code]
     const evaluation = evaluateStockTriggers(stock, quote?.price)
 
-    if (!quote || quote.price === null) {
+    if (!quote || quote.price === null || quote.price <= 0) {
       continue
     }
 
@@ -776,8 +776,8 @@ const runNotifier = async (env: Env) => {
   let activeReminderCount = 0
   let dueReminderCount = 0
 
-  const quoteReadyCount = Object.values(quotes).filter((quote) => quote.price !== null).length
-  const quoteMissingCount = Object.values(quotes).filter((quote) => quote.price === null).length
+  const quoteReadyCount = Object.values(quotes).filter((quote) => quote.price !== null && quote.price > 0).length
+  const quoteMissingCount = Object.values(quotes).filter((quote) => quote.price === null || quote.price <= 0).length
 
   for (const row of rows) {
     const summary = await processBoard(env, row, quotes, now)
