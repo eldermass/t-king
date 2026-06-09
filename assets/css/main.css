@@ -572,21 +572,21 @@ input {
 }
 
 .recommended-add-text.is-profit {
-  color: rgba(198, 79, 52, 0.68);
+  color: #d85b2d;
 }
 
 .recommended-add-text .is-profit {
-  color: var(--accent);
+  color: rgba(216, 91, 45, 0.72);
 }
 
 .recommended-add-text.is-loss,
 .recommended-add-text .is-loss {
-  color: var(--accent-2);
+  color: #2f7ddf;
 }
 
 .recommended-add-text.is-soft-loss,
 .recommended-add-text .is-soft-loss {
-  color: rgba(31, 111, 98, 0.62);
+  color: rgba(47, 125, 223, 0.68);
 }
 
 .recommended-add-text.is-flat,

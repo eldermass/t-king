@@ -359,9 +359,9 @@ export const useStockBoard = () => {
     return value > 0 ? 'is-profit' : negativeTone
   }
 
-  const latestAddProfitAmountTone = (stock: StockCard) => toneByValue(latestAddProfit(stock), 'is-soft-loss')
+  const latestAddProfitAmountTone = (stock: StockCard) => toneByValue(latestAddProfit(stock), 'is-loss')
 
-  const latestAddProfitRateTone = (stock: StockCard) => toneByValue(latestAddProfitRate(stock))
+  const latestAddProfitRateTone = (stock: StockCard) => toneByValue(latestAddProfitRate(stock), 'is-soft-loss')
 
   const syncEntryLots = (entry: BuyEntry) => {
     if (entry.lotsManual) {
