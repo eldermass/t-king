@@ -36,11 +36,16 @@ if (!stockBoard) {
 const {
   formatPrice,
   formatSellPrice,
+  formatPercent,
   formatAmount,
   plannedSellPrice,
   dipPrice,
   referencePrice,
-  recommendedAddPrice,
+  dipAlertSpreadRate,
+  latestAddProfit,
+  latestAddProfitRate,
+  latestAddProfitAmountTone,
+  latestAddProfitRateTone,
   investedAmount,
   totalMarketValue,
   profitAmount,
@@ -49,7 +54,6 @@ const {
   averageCost,
   quoteTone,
   profileText,
-  themeList,
   quoteLabel,
   cardAlertClass,
   isSellTriggered,
@@ -69,13 +73,6 @@ const {
 const onDragPointerDown = (event: PointerEvent) => emit('dragPointerDown', event, props.stock.id)
 const onMovePrev = () => emit('movePrev', props.stock.id)
 const onMoveNext = () => emit('moveNext', props.stock.id)
-
-const titleInputStyle = (name: string) => {
-  const length = Math.max((name.trim() || '股票名称').length + 1, 4)
-  return {
-    width: '100%'
-  }
-}
 </script>
 
 <template>
@@ -170,11 +167,14 @@ const titleInputStyle = (name: string) => {
       </div>
       <div class="summary-box">
         <span>均价</span>
-        <strong>{{ formatPrice(averageCost(stock)) }}</strong>
+        <strong>{{ formatSellPrice(averageCost(stock)) }}</strong>
       </div>
       <div class="summary-box">
-        <span>推荐补仓</span>
-        <strong class="recommended-add-text" :class="recommendedAddClass(stock.id)">{{ formatPrice(recommendedAddPrice(stock)) }}</strong>
+        <span>上次补仓盈亏</span>
+        <strong class="recommended-add-text" :class="latestAddProfitAmountTone(stock)">
+          {{ formatAmount(latestAddProfit(stock)) }}
+          <small :class="latestAddProfitRateTone(stock)">{{ formatPercent(latestAddProfitRate(stock)) }}</small>
+        </strong>
       </div>
     </section>
 
@@ -253,6 +253,7 @@ const titleInputStyle = (name: string) => {
             <tr>
               <th>跌幅</th>
               <th>提醒价</th>
+              <th>上次差率</th>
               <th>删</th>
             </tr>
           </thead>
@@ -266,6 +267,9 @@ const titleInputStyle = (name: string) => {
               </td>
               <td class="warn-text" :class="dipAlertClass(stock.id, alert)">
                 {{ formatPrice(dipPrice(referencePrice(stock), alert.dropRate)) }}
+              </td>
+              <td class="warn-text">
+                {{ formatPercent(dipAlertSpreadRate(stock, alert)) }}
               </td>
               <td class="action-cell">
                 <button

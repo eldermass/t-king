@@ -517,7 +517,7 @@ input {
 
 .summary-strip {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.2fr) minmax(92px, 0.72fr) minmax(0, 1.2fr);
   gap: 8px;
   margin: 12px 0 14px;
 }
@@ -565,6 +565,33 @@ input {
 
 .recommended-add-text {
   color: #f08a24;
+}
+
+.recommended-add-text small {
+  margin-left: 6px;
+}
+
+.recommended-add-text.is-profit {
+  color: rgba(198, 79, 52, 0.68);
+}
+
+.recommended-add-text .is-profit {
+  color: var(--accent);
+}
+
+.recommended-add-text.is-loss,
+.recommended-add-text .is-loss {
+  color: var(--accent-2);
+}
+
+.recommended-add-text.is-soft-loss,
+.recommended-add-text .is-soft-loss {
+  color: rgba(31, 111, 98, 0.62);
+}
+
+.recommended-add-text.is-flat,
+.recommended-add-text .is-flat {
+  color: var(--muted);
 }
 
 .table-section + .table-section {

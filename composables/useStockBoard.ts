@@ -294,6 +294,75 @@ export const useStockBoard = () => {
     return dipPrice(referencePrice(stock), alert?.dropRate ?? RECOMMENDED_ADD_RATE)
   }
 
+  const latestBuyEntry = (stock: StockCard) => {
+    for (let index = stock.buyEntries.length - 1; index >= 0; index -= 1) {
+      const entry = stock.buyEntries[index]
+      const price = entry?.buyPrice
+
+      if (price !== null && price !== undefined && price > 0) {
+        return entry
+      }
+    }
+
+    return null
+  }
+
+  const dipAlertSpreadRate = (stock: StockCard, alert: DipAlert) => {
+    const triggerPrice = dipPrice(referencePrice(stock), alert.dropRate)
+    const recentBuyPrice = latestBuyEntry(stock)?.buyPrice ?? null
+
+    if (triggerPrice === null || recentBuyPrice === null || recentBuyPrice <= 0) {
+      return null
+    }
+
+    return ((triggerPrice - recentBuyPrice) / recentBuyPrice) * 100
+  }
+
+  const latestAddProfit = (stock: StockCard) => {
+    const entry = latestBuyEntry(stock)
+    const livePrice = quoteFor(stock.code).price
+
+    if (!entry || entry.buyPrice === null || entry.buyPrice <= 0 || entry.lots === null || entry.lots <= 0) {
+      return null
+    }
+
+    if (livePrice === null || livePrice <= 0) {
+      return null
+    }
+
+    return (livePrice - entry.buyPrice) * entry.lots * 100
+  }
+
+  const latestAddProfitRate = (stock: StockCard) => {
+    const entry = latestBuyEntry(stock)
+    const livePrice = quoteFor(stock.code).price
+
+    if (!entry || entry.buyPrice === null || entry.buyPrice <= 0) {
+      return null
+    }
+
+    if (livePrice === null || livePrice <= 0) {
+      return null
+    }
+
+    return ((livePrice - entry.buyPrice) / entry.buyPrice) * 100
+  }
+
+  const toneByValue = (
+    value: number | null | undefined,
+    negativeTone: 'is-loss' | 'is-soft-loss' = 'is-loss'
+  ) => {
+    if (value === null || value === undefined || Number.isNaN(value) || Math.abs(value) < 0.005) {
+      return 'is-flat'
+    }
+
+    return value > 0 ? 'is-profit' : negativeTone
+  }
+
+  const latestAddProfitAmountTone = (stock: StockCard) => toneByValue(latestAddProfit(stock), 'is-soft-loss')
+
+  const latestAddProfitRateTone = (stock: StockCard) => toneByValue(latestAddProfitRate(stock))
+
   const syncEntryLots = (entry: BuyEntry) => {
     if (entry.lotsManual) {
       return
@@ -1151,6 +1220,11 @@ export const useStockBoard = () => {
     dipPrice,
     referencePrice,
     recommendedAddPrice,
+    latestAddProfit,
+    latestAddProfitRate,
+    latestAddProfitAmountTone,
+    latestAddProfitRateTone,
+    dipAlertSpreadRate,
     minimumSellPrice,
     investedAmount,
     totalMarketValue,
