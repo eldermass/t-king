@@ -1007,6 +1007,23 @@ export const useStockBoard = () => {
     entry.lotsManual = true
   }
 
+  const handleDipAlertPriceInput = (stock: StockCard, alert: DipAlert, rawValue: string) => {
+    const basePrice = referencePrice(stock)
+
+    if (basePrice === null || basePrice <= 0) {
+      return
+    }
+
+    const nextPrice = Number(rawValue)
+
+    if (!rawValue.trim() || !Number.isFinite(nextPrice) || nextPrice <= 0) {
+      return
+    }
+
+    const roundedPrice = roundMoneyPrice(nextPrice)
+    alert.dropRate = roundPrice(((roundedPrice - basePrice) / basePrice) * 100)
+  }
+
   const reorderStocks = (fromId: string, toId: string) => {
     const fromIndex = stocks.value.findIndex((stock) => stock.id === fromId)
     const toIndex = stocks.value.findIndex((stock) => stock.id === toId)
@@ -1247,6 +1264,7 @@ export const useStockBoard = () => {
     refreshProfiles,
     handleBuyPriceInput,
     handleLotsInput,
+    handleDipAlertPriceInput,
     reorderStocks,
     moveStockByOffset,
     addStock,

@@ -63,6 +63,7 @@ const {
   applyRecommendedDipAlert,
   handleBuyPriceInput,
   handleLotsInput,
+  handleDipAlertPriceInput,
   removeStock,
   addBuyEntry,
   removeBuyEntry,
@@ -265,8 +266,17 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
                   <span>%</span>
                 </div>
               </td>
-              <td class="warn-text" :class="dipAlertClass(stock.id, alert)">
-                {{ formatPrice(dipPrice(referencePrice(stock), alert.dropRate)) }}
+              <td>
+                <input
+                  :value="dipPrice(referencePrice(stock), alert.dropRate) ?? ''"
+                  class="warn-input"
+                  :class="dipAlertClass(stock.id, alert)"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  @input="handleDipAlertPriceInput(stock, alert, (($event.target as HTMLInputElement)?.value ?? ''))"
+                />
               </td>
               <td class="warn-text">
                 {{ formatPercent(dipAlertSpreadRate(stock, alert)) }}
