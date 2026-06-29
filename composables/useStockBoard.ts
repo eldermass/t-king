@@ -1,6 +1,7 @@
 export type BuyEntry = {
   id: string
   buyPrice: number | null
+  buyDate: string | null
   targetRate: number
   lots: number | null
   autoBudget: number
@@ -102,10 +103,84 @@ const RECOMMENDED_ADD_RATE = -4
 const DEFAULT_DIP_INTERVAL = 4
 const INITIAL_POSITION_BUDGET = 30_000
 const ADD_POSITION_BUDGET = 10_000
+const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000
+const DAY_MS = 24 * 60 * 60 * 1000
+const TRADE_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const DEFAULT_STOCK_NAME = '新股票'
 const UNNAMED_STOCK_NAME = '未命名股票'
 
 const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
+const toShanghaiDate = (date: Date) => new Date(date.getTime() + SHANGHAI_OFFSET_MS)
+
+const formatTradeDatePart = (value: number) => String(value).padStart(2, '0')
+
+const currentTradeDate = () => {
+  const shanghaiDate = toShanghaiDate(new Date())
+
+  return `${shanghaiDate.getUTCFullYear()}-${formatTradeDatePart(shanghaiDate.getUTCMonth() + 1)}-${formatTradeDatePart(shanghaiDate.getUTCDate())}`
+}
+
+const parseTradeDate = (value: string) => {
+  if (!TRADE_DATE_PATTERN.test(value)) {
+    return null
+  }
+
+  const [yearText, monthText, dayText] = value.split('-')
+  const year = Number(yearText)
+  const month = Number(monthText)
+  const day = Number(dayText)
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return null
+  }
+
+  const parsed = new Date(Date.UTC(year, month - 1, day))
+
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return null
+  }
+
+  return parsed
+}
+
+const normalizeTradeDate = (value: string | null | undefined) => {
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const trimmed = value.trim()
+
+  return parseTradeDate(trimmed) ? trimmed : null
+}
+
+const isWeekdayTradingDay = (date: Date) => {
+  const weekday = date.getUTCDay()
+  return weekday !== 0 && weekday !== 6
+}
+
+const countTradingDays = (startDate: string, endDate = currentTradeDate()) => {
+  const start = parseTradeDate(startDate)
+  const end = parseTradeDate(endDate)
+
+  if (!start || !end || start.getTime() > end.getTime()) {
+    return null
+  }
+
+  let tradingDays = 0
+
+  for (let cursor = start.getTime(); cursor <= end.getTime(); cursor += DAY_MS) {
+    if (isWeekdayTradingDay(new Date(cursor))) {
+      tradingDays += 1
+    }
+  }
+
+  return Math.max(tradingDays, 1)
+}
 
 const estimateLots = (buyPrice: number | null, budget: number) => {
   if (buyPrice === null || buyPrice <= 0) {
@@ -117,6 +192,7 @@ const estimateLots = (buyPrice: number | null, budget: number) => {
 
 const createBuyEntry = (
   buyPrice: number | null = null,
+  buyDate: string | null = null,
   targetRate = 3,
   lots: number | null = null,
   autoBudget = ADD_POSITION_BUDGET,
@@ -124,6 +200,7 @@ const createBuyEntry = (
 ): BuyEntry => ({
   id: createId(),
   buyPrice,
+  buyDate: normalizeTradeDate(buyDate) ?? (buyPrice !== null && buyPrice > 0 ? currentTradeDate() : null),
   targetRate,
   lots: lots ?? estimateLots(buyPrice, autoBudget),
   autoBudget,
@@ -152,7 +229,7 @@ const defaultStocks = (): StockCard[] => [
     coreBusiness: '研发、生产和销售触控显示器件材料、车载显示模组、超薄玻璃盖板（UTG）等电子显示器件与材料。',
     recommendedDipAlertId: null,
     profileInitializedCode: '300088',
-    buyEntries: [createBuyEntry(7.85, 3, null, INITIAL_POSITION_BUDGET)],
+    buyEntries: [createBuyEntry(7.85, null, 3, null, INITIAL_POSITION_BUDGET)],
     dipAlerts: defaultDipAlerts()
   },
   {
@@ -165,7 +242,7 @@ const defaultStocks = (): StockCard[] => [
     coreBusiness: '提供全案推广、全案广告代理、出海广告投放及 AI 营销等一站式营销科技服务，覆盖品牌传播与效果投放。',
     recommendedDipAlertId: null,
     profileInitializedCode: '300058',
-    buyEntries: [createBuyEntry(17, 3, null, INITIAL_POSITION_BUDGET), createBuyEntry(16.1, 3, null, ADD_POSITION_BUDGET)],
+    buyEntries: [createBuyEntry(17, null, 3, null, INITIAL_POSITION_BUDGET), createBuyEntry(16.1, null, 3, null, ADD_POSITION_BUDGET)],
     dipAlerts: defaultDipAlerts()
   },
   {
@@ -179,10 +256,10 @@ const defaultStocks = (): StockCard[] => [
     recommendedDipAlertId: null,
     profileInitializedCode: '301171',
     buyEntries: [
-      createBuyEntry(43.7, 3, null, INITIAL_POSITION_BUDGET),
-      createBuyEntry(42, 3, null, ADD_POSITION_BUDGET),
-      createBuyEntry(39.8, 3, null, ADD_POSITION_BUDGET),
-      createBuyEntry(38.4, 3, null, ADD_POSITION_BUDGET)
+      createBuyEntry(43.7, null, 3, null, INITIAL_POSITION_BUDGET),
+      createBuyEntry(42, null, 3, null, ADD_POSITION_BUDGET),
+      createBuyEntry(39.8, null, 3, null, ADD_POSITION_BUDGET),
+      createBuyEntry(38.4, null, 3, null, ADD_POSITION_BUDGET)
     ],
     dipAlerts: defaultDipAlerts()
   }
@@ -305,6 +382,36 @@ export const useStockBoard = () => {
     }
 
     return null
+  }
+
+  const firstBuyDate = (stock: StockCard) => {
+    const dates = stock.buyEntries
+      .filter((entry) => entry.buyPrice !== null && entry.buyPrice > 0)
+      .map((entry) => normalizeTradeDate(entry.buyDate))
+      .filter((value): value is string => Boolean(value))
+      .sort((left, right) => left.localeCompare(right, 'zh-CN'))
+
+    return dates[0] ?? null
+  }
+
+  const holdingCycle = (stock: StockCard) => {
+    const buyDate = firstBuyDate(stock)
+
+    if (!buyDate) {
+      return null
+    }
+
+    return countTradingDays(buyDate)
+  }
+
+  const holdingCycleLabel = (stock: StockCard) => {
+    const cycle = holdingCycle(stock)
+
+    if (cycle === null) {
+      return null
+    }
+
+    return `${cycle}\u5468\u671f`
   }
 
   const dipAlertSpreadRate = (stock: StockCard, alert: DipAlert) => {
@@ -994,6 +1101,10 @@ export const useStockBoard = () => {
       entry.buyPrice = roundMoneyPrice(entry.buyPrice)
     }
 
+    if (entry.buyPrice !== null && entry.buyPrice > 0 && !normalizeTradeDate(entry.buyDate)) {
+      entry.buyDate = currentTradeDate()
+    }
+
     syncEntryLots(entry)
   }
 
@@ -1060,7 +1171,7 @@ export const useStockBoard = () => {
       coreBusiness: '',
       recommendedDipAlertId: null,
       profileInitializedCode: null,
-      buyEntries: [createBuyEntry(null, 3, null, INITIAL_POSITION_BUDGET)],
+      buyEntries: [createBuyEntry(null, null, 3, null, INITIAL_POSITION_BUDGET)],
       dipAlerts: defaultDipAlerts()
     })
   }
@@ -1080,7 +1191,7 @@ export const useStockBoard = () => {
   }
 
   const addBuyEntry = (stock: StockCard) => {
-    stock.buyEntries.push(createBuyEntry(null, 3, null, ADD_POSITION_BUDGET))
+    stock.buyEntries.push(createBuyEntry(null, null, 3, null, ADD_POSITION_BUDGET))
     shiftDipAlerts(stock, -DEFAULT_DIP_INTERVAL)
   }
 
@@ -1241,6 +1352,8 @@ export const useStockBoard = () => {
     latestAddProfitRate,
     latestAddProfitAmountTone,
     latestAddProfitRateTone,
+    holdingCycle,
+    holdingCycleLabel,
     dipAlertSpreadRate,
     minimumSellPrice,
     investedAmount,

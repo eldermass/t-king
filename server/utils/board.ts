@@ -18,10 +18,31 @@ const estimateLots = (buyPrice: number | null, budget: number) => {
 
 const INITIAL_POSITION_BUDGET = 30_000
 const ADD_POSITION_BUDGET = 10_000
+const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000
+const TRADE_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const UNNAMED_STOCK_NAME = '未命名股票'
 
+const toShanghaiDate = (date: Date) => new Date(date.getTime() + SHANGHAI_OFFSET_MS)
+
+const formatTradeDatePart = (value: number) => String(value).padStart(2, '0')
+
+const currentTradeDate = () => {
+  const shanghaiDate = toShanghaiDate(new Date())
+
+  return `${shanghaiDate.getUTCFullYear()}-${formatTradeDatePart(shanghaiDate.getUTCMonth() + 1)}-${formatTradeDatePart(shanghaiDate.getUTCDate())}`
+}
+
+const normalizeTradeDate = (value: string | null | undefined) => {
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const trimmed = value.trim()
+  return TRADE_DATE_PATTERN.test(trimmed) ? trimmed : null
+}
 const createBuyEntry = (
   buyPrice: number | null = null,
+  buyDate: string | null = null,
   targetRate = 3,
   lots: number | null = null,
   autoBudget = ADD_POSITION_BUDGET,
@@ -29,6 +50,7 @@ const createBuyEntry = (
 ): BuyEntry => ({
   id: createId(),
   buyPrice,
+  buyDate: normalizeTradeDate(buyDate) ?? (buyPrice !== null && buyPrice > 0 ? currentTradeDate() : null),
   targetRate,
   lots: lots ?? estimateLots(buyPrice, autoBudget),
   autoBudget,
@@ -58,7 +80,7 @@ export const defaultBoardPayload = (): BoardPayload => ({
       coreBusiness: '研发、生产和销售触控显示器件材料、车载显示模组、超薄玻璃盖板（UTG）等电子显示器件与材料。',
       recommendedDipAlertId: null,
       profileInitializedCode: '300088',
-      buyEntries: [createBuyEntry(7.85, 3, null, INITIAL_POSITION_BUDGET)],
+      buyEntries: [createBuyEntry(7.85, null, 3, null, INITIAL_POSITION_BUDGET)],
       dipAlerts: defaultDipAlerts()
     },
     {
@@ -71,7 +93,7 @@ export const defaultBoardPayload = (): BoardPayload => ({
       coreBusiness: '提供全案推广、全案广告代理、出海广告投放及 AI 营销等一站式营销科技服务，覆盖品牌传播与效果投放。',
       recommendedDipAlertId: null,
       profileInitializedCode: '300058',
-      buyEntries: [createBuyEntry(17, 3, null, INITIAL_POSITION_BUDGET), createBuyEntry(16.1, 3, null, ADD_POSITION_BUDGET)],
+      buyEntries: [createBuyEntry(17, null, 3, null, INITIAL_POSITION_BUDGET), createBuyEntry(16.1, null, 3, null, ADD_POSITION_BUDGET)],
       dipAlerts: defaultDipAlerts()
     },
     {
@@ -85,10 +107,10 @@ export const defaultBoardPayload = (): BoardPayload => ({
       recommendedDipAlertId: null,
       profileInitializedCode: '301171',
       buyEntries: [
-        createBuyEntry(43.7, 3, null, INITIAL_POSITION_BUDGET),
-        createBuyEntry(42, 3, null, ADD_POSITION_BUDGET),
-        createBuyEntry(39.8, 3, null, ADD_POSITION_BUDGET),
-        createBuyEntry(38.4, 3, null, ADD_POSITION_BUDGET)
+        createBuyEntry(43.7, null, 3, null, INITIAL_POSITION_BUDGET),
+        createBuyEntry(42, null, 3, null, ADD_POSITION_BUDGET),
+        createBuyEntry(39.8, null, 3, null, ADD_POSITION_BUDGET),
+        createBuyEntry(38.4, null, 3, null, ADD_POSITION_BUDGET)
       ],
       dipAlerts: defaultDipAlerts()
     }
@@ -159,6 +181,7 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
           ? stock.buyEntries.map((entry: any) => ({
               id: typeof entry.id === 'string' ? entry.id : createId(),
               buyPrice: typeof entry.buyPrice === 'number' ? entry.buyPrice : null,
+              buyDate: normalizeTradeDate(typeof entry.buyDate === 'string' ? entry.buyDate : null) ?? (typeof entry.buyPrice === 'number' && entry.buyPrice > 0 ? currentTradeDate() : null),
               targetRate: typeof entry.targetRate === 'number' ? entry.targetRate : 3,
               lots: typeof entry.lots === 'number' ? entry.lots : null,
               autoBudget: typeof entry.autoBudget === 'number'

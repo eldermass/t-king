@@ -53,6 +53,8 @@ const {
   profitSign,
   averageCost,
   quoteTone,
+  holdingCycle,
+  holdingCycleLabel,
   profileText,
   quoteLabel,
   cardAlertClass,
@@ -71,6 +73,24 @@ const {
   removeDipAlert
 } = stockBoard
 
+const cycleValue = (stock: StockCard) => holdingCycle(stock) ?? 0
+
+const cycleAdvisoryText = (stock: StockCard) => {
+  const cycle = cycleValue(stock)
+
+  if (cycle > 20) {
+    return '\u62e9\u673a\u5272\u8089'
+  }
+
+  if (cycle > 10) {
+    return '\u8c28\u614e\u8865\u4ed3'
+  }
+
+  return ''
+}
+
+const hasCycleAdvisory = (stock: StockCard) => cycleValue(stock) > 10
+
 const onDragPointerDown = (event: PointerEvent) => emit('dragPointerDown', event, props.stock.id)
 const onMovePrev = () => emit('movePrev', props.stock.id)
 const onMoveNext = () => emit('moveNext', props.stock.id)
@@ -85,12 +105,16 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
         'is-dragging': isDragging,
         'is-pressed': isPressed,
         'is-drop-target': isDropTarget,
-        'stock-card-h5': mode === 'h5'
+        'stock-card-h5': mode === 'h5',
+        'stock-card-cycle-aged': hasCycleAdvisory(stock)
       }
     ]"
     :data-stock-id="stock.id"
     :style="customStyle"
   >
+    <div v-if="hasCycleAdvisory(stock)" class="cycle-advisory">
+      {{ cycleAdvisoryText(stock) }}
+    </div>
     <button
       v-if="mode === 'desktop'"
       class="drag-handle"
@@ -108,12 +132,15 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
         <div class="title-main-line title-main-line-h5">
           <div class="title-stack-h5">
             <div class="title-line title-line-h5">
-              <input
-                v-model="stock.name"
-                class="title-input title-input-h5"
-                type="text"
-                placeholder="股票名称"
-              />
+              <div class="title-name-row title-name-row-h5">
+                <input
+                  v-model="stock.name"
+                  class="title-input title-input-h5"
+                  type="text"
+                  placeholder="????"
+                />
+                <span v-if="holdingCycleLabel(stock)" class="cycle-badge">{{ holdingCycleLabel(stock) }}</span>
+              </div>
               <span class="quote-pill" :class="quoteTone(stock.code)">
                 {{ quoteLabel(stock.code) }}
               </span>
@@ -135,12 +162,14 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
 
       <div v-else class="title-wrap">
         <div class="title-line">
-          <input v-model="stock.name" class="title-input" type="text" placeholder="股票名称" />
+          <div class="title-name-row">
+            <input v-model="stock.name" class="title-input" type="text" placeholder="????" />
+            <span v-if="holdingCycleLabel(stock)" class="cycle-badge">{{ holdingCycleLabel(stock) }}</span>
+          </div>
           <span class="quote-pill" :class="quoteTone(stock.code)">
             {{ quoteLabel(stock.code) }}
           </span>
         </div>
-
         <div class="code-line">
           <input
             v-model="stock.code"

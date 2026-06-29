@@ -1,7 +1,8 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+﻿import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { H3Event } from 'h3'
 import { randomUUID } from 'node:crypto'
+import { defaultBoardPayload, normalizeBoardPayload } from '~/server/utils/board'
 
 type DbLike = {
   prepare: (sql: string) => {
@@ -42,13 +43,22 @@ type AuthenticatedUser = {
   username: string
 }
 
-const DEV_DB_PATH = join(process.cwd(), '.data', 'dev-db.json')
+const DEV_DB_DIR = join(process.cwd(), '.data')
+const DEV_DB_PATH = join(DEV_DB_DIR, 'dev-db.json')
+
+let devDatabaseQueue: Promise<void> = Promise.resolve()
 
 const emptyDevDatabase = (): DevDatabase => ({
   users: [],
   sessions: [],
   boards: []
 })
+
+const withDevDatabaseLock = async <T>(callback: () => Promise<T>) => {
+  const next = devDatabaseQueue.then(callback, callback)
+  devDatabaseQueue = next.then(() => undefined, () => undefined)
+  return next
+}
 
 const extractLeadingJsonObject = (raw: string) => {
   const start = raw.search(/\S/)
@@ -99,6 +109,13 @@ const extractLeadingJsonObject = (raw: string) => {
 }
 
 const parseDevDatabase = (raw: string) => {
+  if (!raw.trim()) {
+    return {
+      parsed: emptyDevDatabase(),
+      repaired: true
+    }
+  }
+
   try {
     return {
       parsed: JSON.parse(raw) as Partial<DevDatabase>,
@@ -118,6 +135,185 @@ const parseDevDatabase = (raw: string) => {
   }
 }
 
+const normalizeDevBoardPayload = (payload: unknown) => {
+  if (typeof payload !== 'string' || !payload.trim()) {
+    return {
+      payload: JSON.stringify(defaultBoardPayload()),
+      repaired: true
+    }
+  }
+
+  try {
+    const normalizedPayload = JSON.stringify(normalizeBoardPayload(JSON.parse(payload)))
+
+    return {
+      payload: normalizedPayload,
+      repaired: normalizedPayload !== payload
+    }
+  } catch {
+    return {
+      payload: JSON.stringify(defaultBoardPayload()),
+      repaired: true
+    }
+  }
+}
+
+const normalizeDevDatabase = (parsed: Partial<DevDatabase>) => {
+  let repaired = false
+
+  const users = Array.isArray(parsed.users)
+    ? parsed.users
+        .filter((item): item is Partial<DevUser> => Boolean(item) && typeof item === 'object')
+        .map((item) => {
+          const normalizedUser: DevUser = {
+            id: typeof item.id === 'string' ? item.id : randomUUID(),
+            username: typeof item.username === 'string' ? item.username : '',
+            passwordHash: typeof item.passwordHash === 'string' ? item.passwordHash : '',
+            createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString()
+          }
+
+          if (
+            normalizedUser.id !== item.id ||
+            normalizedUser.username !== item.username ||
+            normalizedUser.passwordHash !== item.passwordHash ||
+            normalizedUser.createdAt !== item.createdAt
+          ) {
+            repaired = true
+          }
+
+          return normalizedUser
+        })
+    : []
+
+  if (!Array.isArray(parsed.users)) {
+    repaired = true
+  }
+
+  const sessions = Array.isArray(parsed.sessions)
+    ? parsed.sessions
+        .filter((item): item is Partial<DevSession> => Boolean(item) && typeof item === 'object')
+        .map((item) => {
+          const normalizedSession: DevSession = {
+            id: typeof item.id === 'string' ? item.id : randomUUID(),
+            userId: typeof item.userId === 'string' ? item.userId : '',
+            expiresAt: typeof item.expiresAt === 'string' ? item.expiresAt : new Date(0).toISOString()
+          }
+
+          if (
+            normalizedSession.id !== item.id ||
+            normalizedSession.userId !== item.userId ||
+            normalizedSession.expiresAt !== item.expiresAt
+          ) {
+            repaired = true
+          }
+
+          return normalizedSession
+        })
+    : []
+
+  if (!Array.isArray(parsed.sessions)) {
+    repaired = true
+  }
+
+  const boards = Array.isArray(parsed.boards)
+    ? parsed.boards
+        .filter((item): item is Partial<DevBoard> => Boolean(item) && typeof item === 'object')
+        .map((item) => {
+          const normalizedPayload = normalizeDevBoardPayload(item.payload)
+          const normalizedBoard: DevBoard = {
+            userId: typeof item.userId === 'string' ? item.userId : '',
+            payload: normalizedPayload.payload,
+            updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : new Date().toISOString()
+          }
+
+          if (
+            normalizedBoard.userId !== item.userId ||
+            normalizedBoard.updatedAt !== item.updatedAt ||
+            normalizedPayload.repaired
+          ) {
+            repaired = true
+          }
+
+          return normalizedBoard
+        })
+    : []
+
+  if (!Array.isArray(parsed.boards)) {
+    repaired = true
+  }
+
+  return {
+    normalized: {
+      users,
+      sessions,
+      boards
+    },
+    repaired
+  }
+}
+
+const backupBrokenDevDatabase = async (raw: string, label = 'broken') => {
+  await mkdir(DEV_DB_DIR, { recursive: true })
+  const backupPath = join(DEV_DB_DIR, `dev-db.${label}-${Date.now()}.json`)
+  await writeFile(backupPath, raw, 'utf8')
+}
+
+const writeDevDatabaseUnsafe = async (database: DevDatabase) => {
+  await mkdir(DEV_DB_DIR, { recursive: true })
+  const nextContent = JSON.stringify(database, null, 2)
+  const tempPath = `${DEV_DB_PATH}.${process.pid}.${Date.now()}.tmp`
+  await writeFile(tempPath, nextContent, 'utf8')
+  await rename(tempPath, DEV_DB_PATH)
+}
+
+const tryParseDevDatabase = async (raw: string) => {
+  try {
+    return parseDevDatabase(raw)
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      await new Promise((resolve) => setTimeout(resolve, 25))
+      return parseDevDatabase(await readFile(DEV_DB_PATH, 'utf8'))
+    }
+
+    throw error
+  }
+}
+
+const readDevDatabaseUnsafe = async (): Promise<DevDatabase> => {
+  try {
+    const raw = await readFile(DEV_DB_PATH, 'utf8')
+    const { parsed, repaired: parsedRepair } = await tryParseDevDatabase(raw)
+    const { normalized, repaired: normalizedRepair } = normalizeDevDatabase(parsed)
+
+    if (parsedRepair || normalizedRepair) {
+      await backupBrokenDevDatabase(raw, 'repaired')
+      await writeDevDatabaseUnsafe(normalized)
+    }
+
+    return normalized
+  } catch (error: any) {
+    if (error?.code === 'ENOENT') {
+      return emptyDevDatabase()
+    }
+
+    if (error instanceof SyntaxError) {
+      const brokenRaw = await readFile(DEV_DB_PATH, 'utf8').catch(() => '')
+
+      if (brokenRaw.trim()) {
+        await backupBrokenDevDatabase(brokenRaw, 'broken')
+      }
+
+      const emptyDatabase = emptyDevDatabase()
+      await writeDevDatabaseUnsafe(emptyDatabase)
+      return emptyDatabase
+    }
+
+    throw error
+  }
+}
+
+const readDevDatabase = async (): Promise<DevDatabase> => withDevDatabaseLock(readDevDatabaseUnsafe)
+
 const getCloudflareDb = (event: H3Event): DbLike | null => {
   const binding = (event.context.cloudflare?.env as Record<string, unknown> | undefined)?.DB
 
@@ -128,40 +324,19 @@ const getCloudflareDb = (event: H3Event): DbLike | null => {
   return binding as DbLike
 }
 
-const readDevDatabase = async (): Promise<DevDatabase> => {
-  try {
-    const raw = await readFile(DEV_DB_PATH, 'utf8')
-    const { parsed, repaired } = parseDevDatabase(raw)
-    const normalized = {
-      users: Array.isArray(parsed.users) ? parsed.users : [],
-      sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
-      boards: Array.isArray(parsed.boards) ? parsed.boards : []
-    }
-
-    if (repaired) {
-      await writeDevDatabase(normalized)
-    }
-
-    return normalized
-  } catch (error: any) {
-    if (error?.code === 'ENOENT') {
-      return emptyDevDatabase()
-    }
-
-    throw error
-  }
-}
-
-const writeDevDatabase = async (database: DevDatabase) => {
-  await mkdir(join(process.cwd(), '.data'), { recursive: true })
-  await writeFile(DEV_DB_PATH, JSON.stringify(database, null, 2), 'utf8')
-}
-
 const withDevDatabase = async <T>(callback: (database: DevDatabase) => Promise<T>) => {
-  const database = await readDevDatabase()
-  const result = await callback(database)
-  await writeDevDatabase(database)
-  return result
+  return withDevDatabaseLock(async () => {
+    const database = await readDevDatabaseUnsafe()
+    const beforeWrite = JSON.stringify(database)
+    const result = await callback(database)
+    const afterWrite = JSON.stringify(database)
+
+    if (beforeWrite !== afterWrite) {
+      await writeDevDatabaseUnsafe(database)
+    }
+
+    return result
+  })
 }
 
 export const getStorageMode = (event: H3Event) => {
