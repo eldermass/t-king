@@ -286,7 +286,7 @@ input {
 }
 
 .stock-card-cycle-aged {
-  background: linear-gradient(180deg, rgba(255, 252, 245, 0.96) 0%, var(--cycle-aged-bg) 100%);
+  background: linear-gradient(0deg, rgba(255, 252, 245, 0.96) 0%, var(--cycle-aged-bg) 100%);
   border-color: var(--cycle-aged-border);
 }
 
