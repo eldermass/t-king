@@ -28,6 +28,7 @@ type StockCard = {
   primaryTheme: string
   secondaryTheme: string
   coreBusiness: string
+  riskWarning: string
   recommendedDipAlertId?: string | null
   profileInitializedCode?: string | null
   buyEntries: BuyEntry[]
@@ -169,6 +170,7 @@ const normalizeStock = (input: any): StockCard | null => {
     primaryTheme: typeof input.primaryTheme === 'string' ? input.primaryTheme : '',
     secondaryTheme: typeof input.secondaryTheme === 'string' ? input.secondaryTheme : '',
     coreBusiness: typeof input.coreBusiness === 'string' ? input.coreBusiness : '',
+    riskWarning: typeof input.riskWarning === 'string' ? input.riskWarning : '',
     recommendedDipAlertId: typeof input.recommendedDipAlertId === 'string' ? input.recommendedDipAlertId : null,
     profileInitializedCode: typeof input.profileInitializedCode === 'string' ? input.profileInitializedCode : null,
     buyEntries: Array.isArray(input.buyEntries)
@@ -664,6 +666,19 @@ const processBoard = async (env: Env, row: BoardRow, quotes: Record<string, Quot
   let changed = JSON.stringify(parsed.notifications ?? {}) !== JSON.stringify(next)
   const pushDeerKey = next.pushDeerKey.trim()
   const reminderCount = Object.keys(next.activeReminders).length
+  const riskWarnings = parsed.stocks
+    .map((stock) => stock.riskWarning.trim())
+    .filter((text) => text.length > 0)
+
+  if (pushDeerKey && riskWarnings.length) {
+    for (const text of riskWarnings) {
+      try {
+        await sendPushDeerMessage(pushDeerKey, '\u6ce8\u610f\u98ce\u9669', text)
+      } catch (error) {
+        console.log(`pushdeer risk warning send failed for ${row.user_id}`, error)
+      }
+    }
+  }
 
   if (due.length && pushDeerKey) {
     const activeReminders = Object.values(next.activeReminders)

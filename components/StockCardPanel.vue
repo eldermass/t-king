@@ -372,6 +372,16 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
             :placeholder="profileText('', stock.code)"
           />
         </label>
+
+        <label class="info-field info-field-wide risk-warning-field">
+          <span>风险警告</span>
+          <textarea
+            v-model="stock.riskWarning"
+            class="info-textarea risk-warning-textarea"
+            rows="3"
+            placeholder="输入需要在 worker 调用时推送到 PushDeer 的风险提醒"
+          />
+        </label>
       </div>
     </section>
 

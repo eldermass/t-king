@@ -881,6 +881,21 @@ td input:focus {
   word-break: break-word;
 }
 
+.risk-warning-field {
+  margin-top: 4px;
+}
+
+.risk-warning-textarea {
+  min-height: 88px;
+  border-color: rgba(198, 79, 52, 0.22);
+  background: rgba(255, 244, 238, 0.92);
+}
+
+.risk-warning-textarea:focus {
+  border-color: rgba(198, 79, 52, 0.4);
+  box-shadow: 0 0 0 3px rgba(198, 79, 52, 0.1);
+}
+
 .h5-card-actions {
   display: flex;
   justify-content: space-between;

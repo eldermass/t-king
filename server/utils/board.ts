@@ -87,6 +87,7 @@ export const defaultBoardPayload = (): BoardPayload => ({
       secondaryTheme: 'UTG / 折叠屏',
       coreBusiness: '研发、生产和销售触控显示器件材料、车载显示模组、超薄玻璃盖板（UTG）等电子显示器件与材料。',
       recommendedDipAlertId: null,
+      riskWarning: '',
       profileInitializedCode: '300088',
       buyEntries: [createBuyEntry(7.85, null, 3, null, INITIAL_POSITION_BUDGET)],
       dipAlerts: defaultDipAlerts()
@@ -100,6 +101,7 @@ export const defaultBoardPayload = (): BoardPayload => ({
       secondaryTheme: '出海营销',
       coreBusiness: '提供全案推广、全案广告代理、出海广告投放及 AI 营销等一站式营销科技服务，覆盖品牌传播与效果投放。',
       recommendedDipAlertId: null,
+      riskWarning: '',
       profileInitializedCode: '300058',
       buyEntries: [createBuyEntry(17, null, 3, null, INITIAL_POSITION_BUDGET), createBuyEntry(16.1, null, 3, null, ADD_POSITION_BUDGET)],
       dipAlerts: defaultDipAlerts()
@@ -113,6 +115,7 @@ export const defaultBoardPayload = (): BoardPayload => ({
       secondaryTheme: '跨境电商',
       coreBusiness: '为企业提供出海整合营销、数字营销、广告变现，以及 AI 数字创意、BI 决策、CI 智能化多云管理等出海数字化服务。',
       recommendedDipAlertId: null,
+      riskWarning: '',
       profileInitializedCode: '301171',
       buyEntries: [
         createBuyEntry(43.7, null, 3, null, INITIAL_POSITION_BUDGET),
@@ -180,6 +183,7 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
         name: typeof stock.name === 'string' ? stock.name : UNNAMED_STOCK_NAME,
         code: typeof stock.code === 'string' ? stock.code : '',
         subIndustry: typeof stock.subIndustry === 'string' ? stock.subIndustry : '',
+        riskWarning: typeof stock.riskWarning === 'string' ? stock.riskWarning : '',
         primaryTheme: typeof stock.primaryTheme === 'string' ? stock.primaryTheme : '',
         secondaryTheme: typeof stock.secondaryTheme === 'string' ? stock.secondaryTheme : '',
         coreBusiness: typeof stock.coreBusiness === 'string' ? stock.coreBusiness : '',
