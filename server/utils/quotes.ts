@@ -43,6 +43,20 @@ const parseNumber = (value: string | undefined) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 
+const decodeSinaQuoteText = (buffer: ArrayBuffer) => {
+  const bytes = new Uint8Array(buffer)
+
+  for (const encoding of ['gb18030', 'gbk']) {
+    try {
+      return new TextDecoder(encoding).decode(bytes)
+    } catch {
+      continue
+    }
+  }
+
+  return new TextDecoder().decode(bytes)
+}
+
 const fetchEastmoneyQuote = async (code: string): Promise<QuoteSnapshot> => {
   let lastError: unknown = null
 
@@ -109,7 +123,7 @@ const fetchSinaFallbackQuotes = async (codes: string[]) => {
       }
     })
 
-    const text = await response.text()
+    const text = decodeSinaQuoteText(await response.arrayBuffer())
     const result: Record<string, QuoteSnapshot> = {}
     const linePattern = /var hq_str_(sh|sz)(\d{6})="([^"]*)";/g
     let match: RegExpExecArray | null = null
