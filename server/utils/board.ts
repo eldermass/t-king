@@ -50,7 +50,7 @@ const createBuyEntry = (
 ): BuyEntry => ({
   id: createId(),
   buyPrice,
-  buyDate: normalizeTradeDate(buyDate) ?? (buyPrice !== null && buyPrice > 0 ? currentTradeDate() : null),
+  buyDate: normalizeTradeDate(buyDate),
   targetRate,
   lots: lots ?? estimateLots(buyPrice, autoBudget),
   autoBudget,
@@ -181,7 +181,7 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
           ? stock.buyEntries.map((entry: any) => ({
               id: typeof entry.id === 'string' ? entry.id : createId(),
               buyPrice: typeof entry.buyPrice === 'number' ? entry.buyPrice : null,
-              buyDate: normalizeTradeDate(typeof entry.buyDate === 'string' ? entry.buyDate : null) ?? (typeof entry.buyPrice === 'number' && entry.buyPrice > 0 ? currentTradeDate() : null),
+              buyDate: normalizeTradeDate(typeof entry.buyDate === 'string' ? entry.buyDate : null),
               targetRate: typeof entry.targetRate === 'number' ? entry.targetRate : 3,
               lots: typeof entry.lots === 'number' ? entry.lots : null,
               autoBudget: typeof entry.autoBudget === 'number'

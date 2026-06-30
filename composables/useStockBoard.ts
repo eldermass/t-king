@@ -200,7 +200,7 @@ const createBuyEntry = (
 ): BuyEntry => ({
   id: createId(),
   buyPrice,
-  buyDate: normalizeTradeDate(buyDate) ?? (buyPrice !== null && buyPrice > 0 ? currentTradeDate() : null),
+  buyDate: normalizeTradeDate(buyDate),
   targetRate,
   lots: lots ?? estimateLots(buyPrice, autoBudget),
   autoBudget,
