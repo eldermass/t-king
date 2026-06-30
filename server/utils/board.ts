@@ -40,6 +40,14 @@ const normalizeTradeDate = (value: string | null | undefined) => {
   const trimmed = value.trim()
   return TRADE_DATE_PATTERN.test(trimmed) ? trimmed : null
 }
+
+const preserveBuyDate = (value: string | null | undefined) => {
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  return value
+}
 const createBuyEntry = (
   buyPrice: number | null = null,
   buyDate: string | null = null,
@@ -50,7 +58,7 @@ const createBuyEntry = (
 ): BuyEntry => ({
   id: createId(),
   buyPrice,
-  buyDate: normalizeTradeDate(buyDate),
+  buyDate: preserveBuyDate(buyDate),
   targetRate,
   lots: lots ?? estimateLots(buyPrice, autoBudget),
   autoBudget,
@@ -181,7 +189,7 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
           ? stock.buyEntries.map((entry: any) => ({
               id: typeof entry.id === 'string' ? entry.id : createId(),
               buyPrice: typeof entry.buyPrice === 'number' ? entry.buyPrice : null,
-              buyDate: normalizeTradeDate(typeof entry.buyDate === 'string' ? entry.buyDate : null),
+              buyDate: preserveBuyDate(typeof entry.buyDate === 'string' ? entry.buyDate : null),
               targetRate: typeof entry.targetRate === 'number' ? entry.targetRate : 3,
               lots: typeof entry.lots === 'number' ? entry.lots : null,
               autoBudget: typeof entry.autoBudget === 'number'

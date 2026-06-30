@@ -158,6 +158,14 @@ const normalizeTradeDate = (value: string | null | undefined) => {
   return parseTradeDate(trimmed) ? trimmed : null
 }
 
+const preserveBuyDate = (value: string | null | undefined) => {
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  return value
+}
+
 const isWeekdayTradingDay = (date: Date) => {
   const weekday = date.getUTCDay()
   return weekday !== 0 && weekday !== 6
@@ -200,7 +208,7 @@ const createBuyEntry = (
 ): BuyEntry => ({
   id: createId(),
   buyPrice,
-  buyDate: normalizeTradeDate(buyDate),
+  buyDate: preserveBuyDate(buyDate),
   targetRate,
   lots: lots ?? estimateLots(buyPrice, autoBudget),
   autoBudget,
@@ -387,7 +395,7 @@ export const useStockBoard = () => {
   const firstBuyDate = (stock: StockCard) => {
     const dates = stock.buyEntries
       .filter((entry) => entry.buyPrice !== null && entry.buyPrice > 0)
-      .map((entry) => normalizeTradeDate(entry.buyDate))
+      .map((entry) => normalizeTradeDate(entry.buyDate) ?? currentTradeDate())
       .filter((value): value is string => Boolean(value))
       .sort((left, right) => left.localeCompare(right, 'zh-CN'))
 
