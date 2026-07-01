@@ -9,6 +9,7 @@ import {
 type BuyEntry = {
   id: string
   buyPrice: number | null
+  buyDate: string | null
   targetRate: number
   lots: number | null
   autoBudget: number
@@ -177,6 +178,7 @@ const normalizeStock = (input: any): StockCard | null => {
       ? input.buyEntries.map((entry: any) => ({
           id: typeof entry?.id === 'string' ? entry.id : crypto.randomUUID(),
           buyPrice: typeof entry?.buyPrice === 'number' ? entry.buyPrice : null,
+          buyDate: typeof entry?.buyDate === 'string' ? entry.buyDate : null,
           targetRate: typeof entry?.targetRate === 'number' ? entry.targetRate : 3,
           lots: typeof entry?.lots === 'number' ? entry.lots : null,
           autoBudget: typeof entry?.autoBudget === 'number' ? entry.autoBudget : 10_000,
