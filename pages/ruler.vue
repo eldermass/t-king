@@ -27,6 +27,8 @@ type RulerTick = {
 
 type RulerModel = {
   buyCount: number
+  start: number
+  end: number
   ticks: RulerTick[]
   buyPoints: RulerPoint[]
   gaps: RulerGap[]
@@ -71,6 +73,8 @@ const stockLabel = (stock: StockCard) => stock.name.trim() || stock.code.trim() 
 
 const isValidPrice = (value: number | null | undefined): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value > 0
+
+const clampPercent = (value: number) => Math.min(100, Math.max(0, value))
 
 const formatBuyDate = (value: string) => {
   const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/)
@@ -158,6 +162,8 @@ const buildRulerModel = (stock: StockCard): RulerModel | null => {
 
   return {
     buyCount: entries.length,
+    start,
+    end,
     ticks,
     buyPoints,
     gaps
@@ -168,11 +174,15 @@ const stockRulers = computed(() =>
   stocks.value.map((stock) => {
     const model = buildRulerModel(stock)
     const quote = quoteFor(stock.code)
-    const quoteText = quote.price === null ? '暂无行情' : `${formatPrice(quote.price)} ${formatPercent(quote.changePercent)}`
+    const quoteText = quote.price === null ? '价格不存在' : `${formatPrice(quote.price)} ${formatPercent(quote.changePercent)}`
+    const currentPricePosition = model && isValidPrice(quote.price)
+      ? clampPercent(((quote.price - model.start) / Math.max(model.end - model.start, 0.01)) * 100)
+      : null
 
     return {
       stock,
       model,
+      currentPricePosition,
       quoteText,
       averageText: formatPrice(averageCost(stock))
     }
@@ -250,6 +260,23 @@ const logout = async () => {
                 <span v-if="tick.major" class="price-ruler-tick-label">{{ tick.label }}</span>
               </div>
 
+              <span
+                v-if="item.currentPricePosition !== null"
+                aria-hidden="true"
+                :style="{
+                  position: 'absolute',
+                  left: `${item.currentPricePosition}%`,
+                  top: '50%',
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '999px',
+                  background: '#22c55e',
+                  border: '2px solid #ffffff',
+                  boxShadow: '0 0 0 2px rgba(34, 197, 94, 0.18)',
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: '3'
+                }"
+              ></span>
               <div
                 v-for="point in item.model.buyPoints"
                 :key="point.id"
