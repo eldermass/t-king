@@ -37,14 +37,14 @@ const cloudStatusText = computed(() => {
   }
 
   if (saveStatus.value === 'saved') {
-    return '已保存'
+    return '已同步'
   }
 
   if (quoteLoading.value) {
     return '行情刷新中'
   }
 
-  return '已连接云端'
+  return '云端已连接'
 })
 
 const stockShortName = (name: string, code: string) => {
@@ -195,6 +195,7 @@ onMounted(() => {
         </span>
 
         <div class="h5-toolbar-side h5-toolbar-actions">
+          <NuxtLink class="ghost-link" to="/ruler">刻度</NuxtLink>
           <PushDeerSettingsButton compact />
           <button class="primary-btn" type="button" @click="handleAddStock">新增</button>
           <button class="ghost-btn" type="button" @click="logout">退出</button>

@@ -155,7 +155,7 @@ input {
 
 .settings-field span {
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.98rem;
   font-weight: 700;
 }
 
@@ -182,7 +182,7 @@ input {
 .settings-hint {
   margin: 10px 0 0;
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.98rem;
   line-height: 1.5;
 }
 
@@ -239,7 +239,7 @@ input {
 .mini-btn,
 .icon-btn {
   padding: 6px 11px;
-  font-size: 0.84rem;
+  font-size: 0.98rem;
 }
 
 .primary-btn:hover,
@@ -461,7 +461,7 @@ input {
   border-radius: 999px;
   background: rgba(226, 138, 26, 0.14);
   color: var(--cycle-warm);
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
@@ -575,7 +575,7 @@ input {
 .summary-box span {
   display: block;
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.98rem;
   margin-bottom: 4px;
 }
 
@@ -589,7 +589,7 @@ input {
   gap: 6px;
   margin-top: 5px;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -772,7 +772,7 @@ td input:focus {
 
 .dip-section .mini-btn,
 .dip-section .icon-btn {
-  font-size: 0.84rem;
+  font-size: 0.98rem;
 }
 
 .dip-section .recommend-btn {
@@ -808,7 +808,7 @@ td input:focus {
 
 .info-field span {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   font-weight: 700;
 }
 
@@ -1007,7 +1007,7 @@ td input:focus {
 }
 
 .h5-ticker-chip span {
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   white-space: nowrap;
 }
 
@@ -1304,3 +1304,298 @@ td input:focus {
   }
 
 }
+
+.ruler-page {
+  max-width: 1320px;
+}
+
+.ruler-board {
+  display: grid;
+  gap: 16px;
+}
+
+.ruler-card {
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  box-shadow: var(--shadow);
+}
+
+.ruler-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.ruler-card-title {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ruler-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ruler-card-heading strong {
+  font-size: 1.18rem;
+}
+
+.ruler-card-code {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.ruler-card-summary {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.ruler-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ruler-meta-chip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 250, 240, 0.9);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.ruler-scroll {
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-gutter: stable both-edges;
+}
+
+.price-ruler {
+  min-width: 760px;
+}
+
+.price-ruler-rail {
+  position: relative;
+  height: 304px;
+}
+
+.price-ruler-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 138px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(198, 79, 52, 0.18), rgba(31, 111, 98, 0.18));
+  box-shadow: inset 0 0 0 1px rgba(135, 101, 42, 0.08);
+}
+
+.price-ruler-tick {
+  position: absolute;
+  top: 120px;
+  width: 1px;
+  height: 20px;
+  background: rgba(135, 101, 42, 0.2);
+}
+
+.price-ruler-tick.is-major {
+  height: 42px;
+  background: rgba(135, 101, 42, 0.45);
+}
+
+.price-ruler-tick-label {
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255, 252, 245, 0.94);
+  color: var(--muted);
+  font-size: 0.77rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.price-gap-segment {
+  position: absolute;
+  top: 82px;
+  height: 34px;
+}
+
+.price-gap-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px dashed rgba(198, 79, 52, 0.22);
+}
+
+.price-gap-chip {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -100%);
+  display: grid;
+  gap: 3px;
+  min-width: 106px;
+  padding: 5px 8px;
+  border-radius: 14px;
+  background: rgba(255, 250, 240, 0.94);
+  border: 1px solid rgba(198, 79, 52, 0.14);
+  box-shadow: 0 8px 18px rgba(71, 43, 18, 0.08);
+  text-align: center;
+}
+
+.price-gap-chip strong {
+  font-size: 0.8rem;
+}
+
+.price-gap-chip small {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.price-ruler-point {
+  position: absolute;
+  top: 138px;
+  transform: translateX(-50%);
+  width: 0;
+}
+
+.price-ruler-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  border: 2px solid #fff9f1;
+  box-shadow: 0 8px 18px rgba(71, 43, 18, 0.14);
+}
+
+.price-ruler-dot.is-buy {
+  background: var(--accent);
+}
+
+.price-ruler-dot.is-average {
+  background: var(--accent-2);
+}
+
+.price-ruler-dot.is-live {
+  background: #e28a1a;
+}
+
+.price-ruler-point-label {
+  position: absolute;
+  left: 50%;
+  display: grid;
+  gap: 3px;
+  min-width: 106px;
+  max-width: 144px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(255, 250, 240, 0.94);
+  border: 1px solid rgba(135, 101, 42, 0.14);
+  box-shadow: 0 10px 20px rgba(71, 43, 18, 0.08);
+  text-align: center;
+}
+
+.price-ruler-point.is-buy .price-ruler-point-label {
+  top: calc(20px + var(--lane-offset, 0px));
+  transform: translateX(-50%);
+}
+
+.price-ruler-point.is-reference .price-ruler-point-label {
+  bottom: calc(20px + var(--lane-offset, 0px));
+  transform: translateX(-50%);
+}
+
+.price-ruler-point.is-buy .price-ruler-point-label::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -20px;
+  width: 1px;
+  height: 20px;
+  background: rgba(198, 79, 52, 0.24);
+}
+
+.price-ruler-point.is-reference .price-ruler-point-label::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -20px;
+  width: 1px;
+  height: 20px;
+  background: rgba(31, 111, 98, 0.24);
+}
+
+.price-ruler-point-label strong {
+  font-size: 0.98rem;
+}
+
+.price-ruler-point-label span {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.price-ruler-point-label small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.price-ruler-point.is-up .price-ruler-point-label {
+  border-color: rgba(198, 79, 52, 0.22);
+}
+
+.price-ruler-point.is-down .price-ruler-point-label {
+  border-color: rgba(31, 111, 98, 0.22);
+}
+
+.price-ruler-point.is-flat .price-ruler-point-label {
+  border-color: rgba(117, 102, 77, 0.16);
+}
+
+.ruler-empty {
+  margin: 0;
+  padding: 22px 2px 4px;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .ruler-card {
+    padding: 18px 12px;
+  }
+
+  .price-ruler {
+    min-width: 680px;
+  }
+
+  .price-ruler-rail {
+    height: 288px;
+  }
+
+  .price-gap-chip,
+  .price-ruler-point-label {
+    min-width: 96px;
+  }
+}
+

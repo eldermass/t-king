@@ -25,6 +25,26 @@ let activePointerId: number | null = null
 let dragStartX = 0
 let dragStartY = 0
 
+const cloudStatusText = computed(() => {
+  if (boardLoading.value) {
+    return '加载中'
+  }
+
+  if (saveStatus.value === 'saving') {
+    return '保存中'
+  }
+
+  if (saveStatus.value === 'saved') {
+    return '已同步'
+  }
+
+  if (quoteLoading.value) {
+    return '行情刷新中'
+  }
+
+  return '云端已连接'
+})
+
 const resetDragState = () => {
   activePointerId = null
   dragStartX = 0
@@ -152,9 +172,10 @@ onBeforeUnmount(() => {
       <div class="topbar-actions">
         <span class="market-tip">{{ session?.user?.username }}</span>
         <span class="market-tip" :class="{ 'is-busy': boardLoading || saveStatus === 'saving' }">
-          {{ boardLoading ? '云端加载中' : saveStatus === 'saving' ? '正在保存' : saveStatus === 'saved' ? '已保存到云端' : quoteLoading ? '行情刷新中' : '云端同步中' }}
+          {{ cloudStatusText }}
         </span>
         <NuxtLink class="ghost-link" to="/h5">H5</NuxtLink>
+        <NuxtLink class="ghost-link" to="/ruler">刻度</NuxtLink>
         <PushDeerSettingsButton />
         <button class="primary-btn" type="button" @click="addStock">
           新增股票
