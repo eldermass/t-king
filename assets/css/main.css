@@ -1312,9 +1312,14 @@ td input:focus {
 .ruler-board {
   display: grid;
   gap: 16px;
+  min-width: 0;
 }
 
 .ruler-card {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   padding: 20px;
   border-radius: 24px;
   background: var(--panel);
@@ -1380,6 +1385,9 @@ td input:focus {
 }
 
 .ruler-scroll {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
   padding-bottom: 4px;
   scrollbar-gutter: stable both-edges;
@@ -1581,21 +1589,163 @@ td input:focus {
 }
 
 @media (max-width: 640px) {
+  .ruler-page {
+    padding-inline: 10px;
+  }
+
+  .ruler-page .topbar {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .ruler-page .topbar h1 {
+    font-size: 1.08rem;
+  }
+
+  .ruler-page .topbar-actions {
+    justify-content: flex-start;
+    gap: 8px 6px;
+  }
+
+  .ruler-page .topbar-actions .market-tip:first-child {
+    flex: 1 1 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ruler-page .topbar-actions .market-tip {
+    font-size: 0.84rem;
+  }
+
+  .ruler-page .topbar-actions .ghost-link,
+  .ruler-page .topbar-actions .ghost-btn {
+    padding: 6px 10px;
+    font-size: 0.82rem;
+  }
+
   .ruler-card {
     padding: 18px 12px;
   }
 
+  .ruler-card-head {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .ruler-card-heading strong {
+    font-size: 1.05rem;
+  }
+
+  .ruler-card-summary {
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
+
+  .ruler-scroll {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 2px 0 6px;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .price-ruler {
-    min-width: 680px;
+    min-width: clamp(560px, 155vw, 680px);
   }
 
   .price-ruler-rail {
-    height: 288px;
+    height: 268px;
+  }
+
+  .price-ruler-track {
+    top: 128px;
+  }
+
+  .price-ruler-tick {
+    top: 112px;
+    height: 18px;
+  }
+
+  .price-ruler-tick.is-major {
+    height: 34px;
+  }
+
+  .price-ruler-tick-label {
+    top: 40px;
+    padding: 2px 5px;
+    font-size: 0.72rem;
+  }
+
+  .price-gap-segment {
+    top: 78px;
+    height: 30px;
   }
 
   .price-gap-chip,
   .price-ruler-point-label {
-    min-width: 96px;
+    min-width: 84px;
+  }
+
+  .price-gap-chip {
+    min-width: 88px;
+    padding: 4px 6px;
+    border-radius: 12px;
+  }
+
+  .price-gap-chip strong {
+    font-size: 0.74rem;
+  }
+
+  .price-gap-chip small {
+    font-size: 0.7rem;
+  }
+
+  .price-ruler-point {
+    top: 128px;
+  }
+
+  .price-ruler-dot {
+    width: 12px;
+    height: 12px;
+  }
+
+  .price-ruler-point-label {
+    max-width: 112px;
+    padding: 7px 8px;
+    gap: 2px;
+  }
+
+  .price-ruler-point.is-buy .price-ruler-point-label {
+    transform: translateX(-50%);
+  }
+
+  .price-ruler-point.is-lane-0 .price-ruler-point-label {
+    top: 18px;
+  }
+
+  .price-ruler-point.is-lane-1 .price-ruler-point-label {
+    top: 50px;
+  }
+
+  .price-ruler-point.is-lane-0 .price-ruler-point-label::before {
+    top: -18px;
+    height: 18px;
+  }
+
+  .price-ruler-point.is-lane-1 .price-ruler-point-label::before {
+    top: -50px;
+    height: 50px;
+  }
+
+  .price-ruler-point-label strong {
+    font-size: 0.9rem;
+  }
+
+  .price-ruler-point-label small {
+    font-size: 0.72rem;
+    line-height: 1.3;
   }
 }
 
