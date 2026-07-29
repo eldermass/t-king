@@ -46,6 +46,8 @@ const {
   latestAddProfitRate,
   latestAddProfitAmountTone,
   latestAddProfitRateTone,
+  priceMarkerSpread,
+  priceMarkerRate,
   investedAmount,
   totalMarketValue,
   profitAmount,
@@ -65,6 +67,7 @@ const {
   applyRecommendedDipAlert,
   handleBuyPriceInput,
   handleLotsInput,
+  handleMarkerPriceInput,
   handleDipAlertPriceInput,
   removeStock,
   addBuyEntry,
@@ -90,6 +93,12 @@ const cycleAdvisoryText = (stock: StockCard) => {
 }
 
 const hasCycleAdvisory = (stock: StockCard) => cycleValue(stock) > 10
+
+const isPriceMarkerRateAlert = (stock: StockCard, field: 'riseStartPrice' | 'pullbackStartPrice') => {
+  const rate = priceMarkerRate(stock, field)
+
+  return rate !== null && Math.abs(rate) > 15
+}
 
 const onDragPointerDown = (event: PointerEvent) => emit('dragPointerDown', event, props.stock.id)
 const onMovePrev = () => emit('movePrev', props.stock.id)
@@ -322,6 +331,81 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
                 <button class="icon-btn" type="button" @click="removeDipAlert(stock, alert.id)">
                   删
                 </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="table-section dip-section">
+      <div class="section-head">
+        <h2>拉升/回调</h2>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>起涨价</th>
+              <th>上涨差价</th>
+              <th>上涨幅度</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <input
+                  :value="stock.riseStartPrice ?? ''"
+                  class="warn-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  @input="handleMarkerPriceInput(stock, 'riseStartPrice', (($event.target as HTMLInputElement)?.value ?? ''))"
+                />
+              </td>
+              <td>
+                {{ formatSellPrice(priceMarkerSpread(stock, 'riseStartPrice')) }}
+              </td>
+              <td class="warn-text">
+                <span :class="{ 'marker-rate-alert': isPriceMarkerRateAlert(stock, 'riseStartPrice') }">
+                  {{ formatPercent(priceMarkerRate(stock, 'riseStartPrice')) }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>起调价</th>
+              <th>回调差价</th>
+              <th>回调幅度</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <input
+                  :value="stock.pullbackStartPrice ?? ''"
+                  class="warn-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  @input="handleMarkerPriceInput(stock, 'pullbackStartPrice', (($event.target as HTMLInputElement)?.value ?? ''))"
+                />
+              </td>
+              <td>
+                {{ formatSellPrice(priceMarkerSpread(stock, 'pullbackStartPrice')) }}
+              </td>
+              <td class="warn-text">
+                <span :class="{ 'marker-rate-alert': isPriceMarkerRateAlert(stock, 'pullbackStartPrice') }">
+                  {{ formatPercent(priceMarkerRate(stock, 'pullbackStartPrice')) }}
+                </span>
               </td>
             </tr>
           </tbody>

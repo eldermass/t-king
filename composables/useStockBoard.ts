@@ -22,6 +22,8 @@ export type StockCard = {
   secondaryTheme: string
   coreBusiness: string
   riskWarning: string
+  riseStartPrice: number | null
+  pullbackStartPrice: number | null
   recommendedDipAlertId?: string | null
   profileInitializedCode?: string | null
   buyEntries: BuyEntry[]
@@ -237,6 +239,8 @@ const defaultStocks = (): StockCard[] => [
     secondaryTheme: 'UTG / 折叠屏',
     coreBusiness: '研发、生产和销售触控显示器件材料、车载显示模组、超薄玻璃盖板（UTG）等电子显示器件与材料。',
     riskWarning: '',
+    riseStartPrice: null,
+    pullbackStartPrice: null,
     recommendedDipAlertId: null,
     profileInitializedCode: '300088',
     buyEntries: [createBuyEntry(7.85, null, 3, null, INITIAL_POSITION_BUDGET)],
@@ -251,6 +255,8 @@ const defaultStocks = (): StockCard[] => [
     secondaryTheme: '出海营销',
     coreBusiness: '提供全案推广、全案广告代理、出海广告投放及 AI 营销等一站式营销科技服务，覆盖品牌传播与效果投放。',
     riskWarning: '',
+    riseStartPrice: null,
+    pullbackStartPrice: null,
     recommendedDipAlertId: null,
     profileInitializedCode: '300058',
     buyEntries: [createBuyEntry(17, null, 3, null, INITIAL_POSITION_BUDGET), createBuyEntry(16.1, null, 3, null, ADD_POSITION_BUDGET)],
@@ -265,6 +271,8 @@ const defaultStocks = (): StockCard[] => [
     secondaryTheme: '跨境电商',
     coreBusiness: '为企业提供出海整合营销、数字营销、广告变现，以及 AI 数字创意、BI 决策、CI 智能化多云管理等出海数字化服务。',
     riskWarning: '',
+    riseStartPrice: null,
+    pullbackStartPrice: null,
     recommendedDipAlertId: null,
     profileInitializedCode: '301171',
     buyEntries: [
@@ -481,6 +489,34 @@ export const useStockBoard = () => {
   const latestAddProfitAmountTone = (stock: StockCard) => toneByValue(latestAddProfit(stock), 'is-loss')
 
   const latestAddProfitRateTone = (stock: StockCard) => toneByValue(latestAddProfitRate(stock), 'is-soft-loss')
+
+  const markerStartPrice = (stock: StockCard, field: 'riseStartPrice' | 'pullbackStartPrice') => {
+    const value = stock[field]
+
+    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
+  }
+
+  const priceMarkerSpread = (stock: StockCard, field: 'riseStartPrice' | 'pullbackStartPrice') => {
+    const livePrice = quoteFor(stock.code).price
+    const startPrice = markerStartPrice(stock, field)
+
+    if (livePrice === null || livePrice <= 0 || startPrice === null) {
+      return null
+    }
+
+    return roundPrice(livePrice - startPrice)
+  }
+
+  const priceMarkerRate = (stock: StockCard, field: 'riseStartPrice' | 'pullbackStartPrice') => {
+    const spread = priceMarkerSpread(stock, field)
+    const startPrice = markerStartPrice(stock, field)
+
+    if (spread === null || startPrice === null) {
+      return null
+    }
+
+    return roundPrice((spread / startPrice) * 100)
+  }
 
   const syncEntryLots = (entry: BuyEntry) => {
     if (entry.lotsManual) {
@@ -1130,6 +1166,15 @@ export const useStockBoard = () => {
     entry.lotsManual = true
   }
 
+  const handleMarkerPriceInput = (stock: StockCard, field: 'riseStartPrice' | 'pullbackStartPrice', rawValue: string) => {
+    const trimmedValue = rawValue.trim()
+    const nextPrice = Number(trimmedValue)
+
+    stock[field] = trimmedValue && Number.isFinite(nextPrice) && nextPrice > 0
+      ? roundMoneyPrice(nextPrice)
+      : null
+  }
+
   const handleDipAlertPriceInput = (stock: StockCard, alert: DipAlert, rawValue: string) => {
     const basePrice = referencePrice(stock)
 
@@ -1179,6 +1224,8 @@ export const useStockBoard = () => {
       code: '',
       subIndustry: '',
       riskWarning: '',
+      riseStartPrice: null,
+      pullbackStartPrice: null,
       primaryTheme: '',
       secondaryTheme: '',
       coreBusiness: '',
@@ -1365,6 +1412,8 @@ export const useStockBoard = () => {
     latestAddProfitRate,
     latestAddProfitAmountTone,
     latestAddProfitRateTone,
+    priceMarkerSpread,
+    priceMarkerRate,
     holdingCycle,
     holdingCycleLabel,
     dipAlertSpreadRate,
@@ -1390,6 +1439,7 @@ export const useStockBoard = () => {
     refreshProfiles,
     handleBuyPriceInput,
     handleLotsInput,
+    handleMarkerPriceInput,
     handleDipAlertPriceInput,
     reorderStocks,
     moveStockByOffset,

@@ -744,6 +744,13 @@ td input:focus {
   font-weight: 800;
 }
 
+.marker-rate-alert {
+  display: inline-block;
+  color: var(--accent);
+  animation: valueBounceRedMid 0.9s ease-in-out infinite;
+  transform-origin: center;
+}
+
 .action-cell {
   width: 52px;
 }
