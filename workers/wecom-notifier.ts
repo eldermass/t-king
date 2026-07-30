@@ -30,6 +30,8 @@ type StockCard = {
   secondaryTheme: string
   coreBusiness: string
   riskWarning: string
+  riseStartPrice: number | null
+  pullbackStartPrice: number | null
   recommendedDipAlertId?: string | null
   profileInitializedCode?: string | null
   buyEntries: BuyEntry[]
@@ -172,6 +174,8 @@ const normalizeStock = (input: any): StockCard | null => {
     secondaryTheme: typeof input.secondaryTheme === 'string' ? input.secondaryTheme : '',
     coreBusiness: typeof input.coreBusiness === 'string' ? input.coreBusiness : '',
     riskWarning: typeof input.riskWarning === 'string' ? input.riskWarning : '',
+    riseStartPrice: typeof input.riseStartPrice === 'number' ? input.riseStartPrice : null,
+    pullbackStartPrice: typeof input.pullbackStartPrice === 'number' ? input.pullbackStartPrice : null,
     recommendedDipAlertId: typeof input.recommendedDipAlertId === 'string' ? input.recommendedDipAlertId : null,
     profileInitializedCode: typeof input.profileInitializedCode === 'string' ? input.profileInitializedCode : null,
     buyEntries: Array.isArray(input.buyEntries)
