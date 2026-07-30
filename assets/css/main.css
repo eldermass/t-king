@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   color-scheme: light;
   --bg: #f5efe2;
   --panel: rgba(255, 252, 245, 0.92);
@@ -1532,6 +1532,28 @@ td input:focus {
   text-align: center;
 }
 
+.price-ruler-point.is-plan {
+  cursor: pointer;
+}
+
+.price-ruler-point.is-plan .price-ruler-point-label {
+  top: calc(20px + var(--lane-offset, 0px));
+  transform: translateX(-50%) translateY(6px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0s linear 0.18s;
+}
+
+.price-ruler-point.is-plan:hover .price-ruler-point-label,
+.price-ruler-point.is-plan:focus-within .price-ruler-point-label {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
 .price-ruler-point.is-buy .price-ruler-point-label {
   top: calc(20px + var(--lane-offset, 0px));
   transform: translateX(-50%);
@@ -1755,4 +1777,6 @@ td input:focus {
     line-height: 1.3;
   }
 }
+
+
 
