@@ -1157,7 +1157,7 @@ export const useStockBoard = () => {
   }
 
   const handleLotsInput = (entry: BuyEntry) => {
-    if (entry.lots === null || entry.lots <= 0) {
+    if (entry.lots === null || entry.lots === 0) {
       entry.lotsManual = false
       syncEntryLots(entry)
       return

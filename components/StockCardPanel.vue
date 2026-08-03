@@ -261,7 +261,6 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
                 <input
                   v-model.number="entry.lots"
                   type="number"
-                  min="0"
                   step="1"
                   placeholder="0"
                   @input="handleLotsInput(entry)"
