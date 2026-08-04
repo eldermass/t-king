@@ -103,7 +103,7 @@ export const stockBoardKey = Symbol('stock-board')
 
 const REFRESH_MS = 10_000
 const RECOMMENDED_ADD_RATE = -4
-const DEFAULT_DIP_INTERVAL = 4
+const DEFAULT_DIP_INTERVAL = 0
 const INITIAL_POSITION_BUDGET = 30_000
 const ADD_POSITION_BUDGET = 10_000
 const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000
@@ -1251,7 +1251,7 @@ export const useStockBoard = () => {
   }
 
   const addBuyEntry = (stock: StockCard) => {
-    stock.buyEntries.push(createBuyEntry(null, null, 3, null, ADD_POSITION_BUDGET))
+    stock.buyEntries.push(createBuyEntry(null, null, 4, null, ADD_POSITION_BUDGET))
     shiftDipAlerts(stock, -DEFAULT_DIP_INTERVAL)
   }
 
