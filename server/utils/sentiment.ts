@@ -11,6 +11,21 @@ export type SentimentHistoryItem = {
   liquidityScore: number | null
   phase: string
   momentum: number | null
+  totalStocks: number | null
+  board1: number | null
+  board5: number | null
+  board6: number | null
+  board7Plus: number | null
+  advanceToSecond: number | null
+  secondToThird: number | null
+  thirdToFourth: number | null
+  fourthToFifth: number | null
+  yesterdayLimitUpReturn: number | null
+  yesterdayLimitUpMedianReturn: number | null
+  yesterdayLimitUpRiseRatio: number | null
+  yesterdayLadderReturn: number | null
+  leaderReturn: number | null
+  amountChange: number | null
 }
 
 export type SentimentSnapshot = SentimentHistoryItem & {
@@ -30,6 +45,21 @@ export type SentimentSnapshot = SentimentHistoryItem & {
     board3: number | null
     board4Plus: number | null
     totalAmount: number | null
+    totalStocks: number | null
+    board1: number | null
+    board5: number | null
+    board6: number | null
+    board7Plus: number | null
+    advanceToSecond: number | null
+    secondToThird: number | null
+    thirdToFourth: number | null
+    fourthToFifth: number | null
+    yesterdayLimitUpReturn: number | null
+    yesterdayLimitUpMedianReturn: number | null
+    yesterdayLimitUpRiseRatio: number | null
+    yesterdayLadderReturn: number | null
+    leaderReturn: number | null
+    amountChange: number | null
   }
 }
 
@@ -101,7 +131,11 @@ const emptyMarket = (): SentimentSnapshot['market'] => ({
   board2: null,
   board3: null,
   board4Plus: null,
-  totalAmount: null
+  totalAmount: null,
+  totalStocks: null, board1: null, board5: null, board6: null, board7Plus: null,
+  advanceToSecond: null, secondToThird: null, thirdToFourth: null, fourthToFifth: null,
+  yesterdayLimitUpReturn: null, yesterdayLimitUpMedianReturn: null, yesterdayLimitUpRiseRatio: null,
+  yesterdayLadderReturn: null, leaderReturn: null, amountChange: null
 })
 
 const toTradeDate = (date = new Date()) => {
@@ -121,7 +155,11 @@ const createUnavailableSnapshot = (error: string): SentimentSnapshot => ({
   riskScore: null,
   limitScore: null,
   liquidityScore: null,
-  momentum: null,
+    momentum: null,
+    totalStocks: null, board1: null, board5: null, board6: null, board7Plus: null,
+    advanceToSecond: null, secondToThird: null, thirdToFourth: null, fourthToFifth: null,
+    yesterdayLimitUpReturn: null, yesterdayLimitUpMedianReturn: null, yesterdayLimitUpRiseRatio: null,
+    yesterdayLadderReturn: null, leaderReturn: null, amountChange: null,
   phase: 'UNKNOWN',
   stale: true,
   error,
@@ -241,6 +279,11 @@ const calculateSnapshot = (stocks: MarketStock[]): SentimentSnapshot => {
       board3: null,
       board4Plus: null,
       totalAmount
+      , totalStocks: total
+      , board1: null, board5: null, board6: null, board7Plus: null
+      , advanceToSecond: null, secondToThird: null, thirdToFourth: null, fourthToFifth: null
+      , yesterdayLimitUpReturn: null, yesterdayLimitUpMedianReturn: null, yesterdayLimitUpRiseRatio: null
+      , yesterdayLadderReturn: null, leaderReturn: null, amountChange: null
     }
   }
 }
@@ -260,6 +303,32 @@ export const getSentimentSnapshot = async (): Promise<SentimentSnapshot> => {
     marketCache = { expiresAt: Date.now() + CACHE_MS, snapshot }
     return snapshot
   }
+}
+
+export const getPreviousSentimentSnapshot = async (event: H3Event) => {
+  const db = (event.context.cloudflare?.env as Record<string, unknown> | undefined)?.DB as any
+  if (!db?.prepare) return null
+  const result = await db.prepare(`SELECT * FROM market_sentiment ORDER BY trade_date DESC LIMIT 1`).all()
+  const row = result.results?.[0]
+  if (!row) return null
+  return {
+    tradeDate: row.trade_date, updatedAt: row.updated_at, marketSentiment: row.market_sentiment,
+    profitScore: row.profit_score, speculationScore: row.speculation_score, breadthScore: row.breadth_score,
+    limitScore: row.limit_score, liquidityScore: row.liquidity_score, riskScore: row.risk_score,
+    momentum: row.momentum, phase: row.phase, stale: true, error: null,
+    market: {
+      advancers: row.advancers, decliners: row.decliners, unchanged: row.unchanged,
+      limitUp: row.limit_up_count, limitDown: row.limit_down_count, brokenBoard: row.broken_board_count,
+      brokenBoardRate: row.broken_board_rate, maxBoard: row.max_board_height, board2: row.board_2_count,
+      board3: row.board_3_count, board4Plus: row.board_4_plus_count, totalAmount: row.total_amount,
+      totalStocks: row.total_stocks, board1: row.board_1_count, board5: row.board_5_count,
+      board6: row.board_6_count, board7Plus: row.board_7_plus_count, advanceToSecond: row.advance_to_second,
+      secondToThird: row.second_to_third, thirdToFourth: row.third_to_fourth, fourthToFifth: row.fourth_to_fifth,
+      yesterdayLimitUpReturn: row.yesterday_limit_up_return, yesterdayLimitUpMedianReturn: row.yesterday_limit_up_median_return,
+      yesterdayLimitUpRiseRatio: row.yesterday_limit_up_rise_ratio, yesterdayLadderReturn: row.yesterday_ladder_return,
+      leaderReturn: row.leader_return, amountChange: row.amount_change
+    }
+  } as SentimentSnapshot
 }
 
 export const getSentimentHistory = async (event: H3Event, days: number) => {
@@ -293,8 +362,10 @@ export const saveSentimentSnapshot = async (event: H3Event, snapshot: SentimentS
         limit_score, liquidity_score, risk_score, momentum, phase, advancers, decliners,
         unchanged, limit_up_count, limit_down_count, broken_board_count, broken_board_rate,
         max_board_height, board_2_count, board_3_count, board_4_plus_count, total_amount,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        created_at, updated_at, total_stocks, board_1_count, board_5_count, board_6_count, board_7_plus_count,
+        advance_to_second, second_to_third, third_to_fourth, fourth_to_fifth, yesterday_limit_up_return,
+        yesterday_limit_up_median_return, yesterday_limit_up_rise_ratio, yesterday_ladder_return, leader_return, amount_change
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       snapshot.tradeDate, snapshot.marketSentiment, snapshot.profitScore, snapshot.speculationScore,
       snapshot.breadthScore, snapshot.limitScore, snapshot.liquidityScore, snapshot.riskScore,
@@ -302,7 +373,12 @@ export const saveSentimentSnapshot = async (event: H3Event, snapshot: SentimentS
       snapshot.market.unchanged, snapshot.market.limitUp, snapshot.market.limitDown,
       snapshot.market.brokenBoard, snapshot.market.brokenBoardRate, snapshot.market.maxBoard,
       snapshot.market.board2, snapshot.market.board3, snapshot.market.board4Plus,
-      snapshot.market.totalAmount, snapshot.updatedAt, snapshot.updatedAt
+      snapshot.market.totalAmount, snapshot.updatedAt, snapshot.updatedAt, snapshot.market.totalStocks,
+      snapshot.market.board1, snapshot.market.board5, snapshot.market.board6, snapshot.market.board7Plus,
+      snapshot.market.advanceToSecond, snapshot.market.secondToThird, snapshot.market.thirdToFourth,
+      snapshot.market.fourthToFifth, snapshot.market.yesterdayLimitUpReturn, snapshot.market.yesterdayLimitUpMedianReturn,
+      snapshot.market.yesterdayLimitUpRiseRatio, snapshot.market.yesterdayLadderReturn, snapshot.market.leaderReturn,
+      snapshot.market.amountChange
     ).run()
     return
   }
