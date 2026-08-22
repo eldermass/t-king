@@ -14,15 +14,16 @@ type Sentiment = {
   phase: string
   stale: boolean
   error: string | null
-  market: Record<string, number | null>
+  market: Record<string, number | string[] | null>
 }
 type HistoryItem = Pick<Sentiment, 'tradeDate' | 'marketSentiment' | 'profitScore' | 'speculationScore' | 'breadthScore' | 'riskScore' | 'phase' | 'momentum'>
+type DetailItem = { label: string; value: string }
 
 const emptySentiment = (): Sentiment => ({
   tradeDate: '--', updatedAt: '', marketSentiment: null, profitScore: null, speculationScore: null,
   breadthScore: null, limitScore: null, liquidityScore: null, riskScore: null, momentum: null,
   phase: 'UNKNOWN', stale: false, error: null,
-  market: { advancers: null, decliners: null, unchanged: null, limitUp: null, limitDown: null, brokenBoard: null, brokenBoardRate: null, maxBoard: null, board2: null, board3: null, board4Plus: null, totalAmount: null }
+  market: { advancers: null, decliners: null, unchanged: null, limitUp: null, limitDown: null, brokenBoard: null, brokenBoardRate: null, maxBoard: null, board2: null, board3: null, board4Plus: null, totalAmount: null, limitUpCodes: [] }
 })
 
 const data = ref<Sentiment>(emptySentiment())
@@ -31,7 +32,6 @@ const loading = ref(true)
 const refreshing = ref(false)
 const loadError = ref('')
 const viewMode = ref<'live' | 'close'>('live')
-let timer: ReturnType<typeof setInterval> | undefined
 
 const metricDefinitions: Array<{ key: MetricKey; label: string; note: string }> = [
   { key: 'profitScore', label: '赚钱效应', note: '昨日强势股今日表现' },
@@ -48,6 +48,7 @@ const scoreText = (value: number | null) => value === null ? '--' : value.toFixe
 const integerText = (value: number | null) => value === null ? '--' : Math.round(value).toLocaleString('zh-CN')
 const amountText = (value: number | null) => value === null ? '--' : `${(value / 100000000).toFixed(0)} 亿`
 const momentumText = computed(() => data.value.momentum === null ? '--' : `${data.value.momentum >= 0 ? '+' : ''}${data.value.momentum.toFixed(1)}`)
+const historyHigh = computed(() => history.value.length ? Math.max(...history.value.map((item) => item.marketSentiment ?? 0)) : null)
 const momentumTone = computed(() => data.value.momentum === null ? '' : data.value.momentum >= 0 ? 'is-up' : 'is-down')
 const scoreTone = (value: number | null, risk = false) => {
   if (value === null) return ''
@@ -55,9 +56,23 @@ const scoreTone = (value: number | null, risk = false) => {
   return adjusted >= 60 ? 'is-strong' : adjusted <= 40 ? 'is-weak' : 'is-neutral'
 }
 const metricWidth = (value: number | null) => `${value === null ? 0 : Math.min(100, Math.max(0, value))}%`
-const marketValue = (key: string) => data.value.market[key] ?? null
+const marketValue = (key: string) => {
+  const value = data.value.market[key]
+  return typeof value === 'number' ? value : null
+}
+const limitUpCodes = computed(() => Array.isArray(data.value.market.limitUpCodes) ? data.value.market.limitUpCodes as string[] : [])
 const percentText = (value: number | null) => value === null ? '--' : `${(value * 100).toFixed(1)}%`
 const modeLabel = computed(() => viewMode.value === 'live' ? '实时行情' : '上个交易日收盘')
+const metricDetails = (key: MetricKey): DetailItem[] => {
+  const value = (field: string, label: string, formatter: (item: number | null) => string = integerText): DetailItem => ({ label, value: formatter(marketValue(field)) })
+  const percent = (field: string, label: string) => value(field, label, percentText)
+  if (key === 'profitScore') return [percent('yesterdayLimitUpReturn', '昨日涨停平均收益'), percent('yesterdayLimitUpMedianReturn', '昨日涨停中位数'), percent('yesterdayLimitUpRiseRatio', '昨日涨停上涨比例'), percent('yesterdayLadderReturn', '昨日连板收益'), percent('leaderReturn', '昨日最高板收益')]
+  if (key === 'speculationScore') return [value('limitUp', '涨停家数'), value('maxBoard', '最高连板'), value('board1', '一板'), value('board2', '二板'), value('board3', '三板'), value('board4Plus', '四板+'), value('board5', '五板'), value('board6', '六板'), value('board7Plus', '七板+')]
+  if (key === 'breadthScore') return [value('totalStocks', '股票总数'), value('advancers', '上涨家数'), value('decliners', '下跌家数'), value('unchanged', '平盘家数')]
+  if (key === 'limitScore') return [value('limitUp', '涨停家数'), value('limitDown', '跌停家数'), value('brokenBoard', '炸板家数'), percent('brokenBoardRate', '炸板率')]
+  if (key === 'liquidityScore') return [value('totalAmount', '两市成交额', amountText), percent('amountChange', '成交额变化')]
+  return [value('limitDown', '跌停家数'), percent('brokenBoardRate', '炸板率'), percent('leaderReturn', '高位股收益')]
+}
 
 const load = async (initial = false) => {
   if (initial) loading.value = true
@@ -79,6 +94,7 @@ const load = async (initial = false) => {
 }
 
 const setMode = (mode: 'live' | 'close') => { if (viewMode.value !== mode) { viewMode.value = mode; load(true) } }
+const refresh = () => load()
 
 const logout = async () => {
   await $fetch('/api/auth/logout', { method: 'POST' })
@@ -87,9 +103,7 @@ const logout = async () => {
 
 onMounted(() => {
   load(true)
-  timer = setInterval(() => load(), 10_000)
 })
-onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 </script>
 
 <template>
@@ -100,6 +114,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
         <h1>A股市场情绪</h1>
       </div>
       <div class="topbar-actions">
+        <button class="refresh-btn" type="button" :disabled="refreshing" @click="refresh"><span aria-hidden="true">↻</span>{{ refreshing ? '刷新中' : '刷新行情' }}</button>
         <div class="mode-switch" role="group" aria-label="行情模式"><button type="button" :class="{ 'is-active': viewMode === 'live' }" @click="setMode('live')">实时行情</button><button type="button" :class="{ 'is-active': viewMode === 'close' }" @click="setMode('close')">上个交易日收盘</button></div>
         <span class="market-tip" :class="{ 'is-busy': refreshing }">{{ refreshing ? '更新中' : data.updatedAt ? `更新于 ${new Date(data.updatedAt).toLocaleTimeString('zh-CN', { hour12: false })}` : '等待数据' }}</span>
         <NuxtLink class="ghost-link" to="/">看板</NuxtLink>
@@ -110,40 +125,21 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 
     <p v-if="loadError" class="sentiment-alert">{{ loadError }}，保留最近一次成功数据</p>
 
-    <section class="sentiment-hero" :class="scoreTone(data.marketSentiment)">
-      <div class="sentiment-hero-copy">
-        <span class="section-label">综合情绪</span>
-        <div class="sentiment-score-line"><strong>{{ scoreText(data.marketSentiment) }}</strong><span>/ 100</span></div>
-        <div class="sentiment-phase"><i></i>{{ phaseLabel }}</div>
-        <p>今天市场的整体温度与风险反馈</p>
-      </div>
-      <div class="sentiment-hero-side">
-        <div><span>情绪变化</span><strong :class="momentumTone">{{ data.momentum === null ? '暂无变化' : `${data.momentum >= 0 ? '↑' : '↓'} ${momentumText}` }}</strong></div>
-        <div><span>交易日</span><strong>{{ data.tradeDate }}</strong></div>
-      </div>
-    </section>
-
-    <section class="sentiment-metrics">
-      <article v-for="metric in metricDefinitions" :key="metric.key" class="metric-card" :class="scoreTone(data[metric.key], metric.key === 'riskScore')">
-        <div class="metric-card-head"><span>{{ metric.label }}</span><strong>{{ scoreText(data[metric.key]) }}</strong></div>
-        <div class="metric-track"><i :style="{ width: metricWidth(data[metric.key]) }"></i></div>
-        <small>{{ metric.note }}</small>
+    <section class="sentiment-card-grid">
+      <article class="sentiment-panel overview-card">
+        <header class="panel-heading"><div><span class="section-label">SENTIMENT OVERVIEW</span><h2>综合情绪与历史评分</h2></div><span class="panel-date">{{ data.tradeDate }}</span></header>
+        <div class="overview-main"><div class="sentiment-score-line"><strong>{{ scoreText(data.marketSentiment) }}</strong><span>/ 100</span></div><div class="sentiment-phase"><i></i>{{ phaseLabel }}</div><p>情绪变化 <strong :class="momentumTone">{{ data.momentum === null ? '--' : `${data.momentum >= 0 ? '↑' : '↓'} ${momentumText}` }}</strong></p></div>
+        <div v-if="history.length" class="history-chart"><div v-for="item in history.slice().reverse()" :key="`${item.tradeDate}-${item.marketSentiment}`" class="history-bar" :title="`${item.tradeDate} ${scoreText(item.marketSentiment)}`"><i :class="scoreTone(item.marketSentiment)" :style="{ height: `${item.marketSentiment ?? 0}%` }"></i></div></div><p v-else class="empty-state">暂无历史评分</p>
+        <div class="history-latest"><span>{{ modeLabel }}</span><span>交易日 {{ data.tradeDate }}</span><span>最高 {{ scoreText(historyHigh) }}</span></div>
+      </article>
+      <article v-for="metric in metricDefinitions" :key="metric.key" class="sentiment-panel metric-detail-card" :class="scoreTone(data[metric.key], metric.key === 'riskScore')">
+        <header class="panel-heading"><div><span class="section-label">{{ metric.key.replace('Score', '').toUpperCase() }}</span><h2>{{ metric.label }}</h2></div><strong class="detail-score">{{ scoreText(data[metric.key]) }}</strong></header>
+        <div class="metric-track"><i :style="{ width: metricWidth(data[metric.key]) }"></i></div><p class="metric-note">{{ metric.note }}</p>
+        <div class="detail-grid"><div v-for="item in metricDetails(metric.key)" :key="item.label"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div></div>
       </article>
     </section>
 
-    <section class="sentiment-grid">
-      <article class="sentiment-panel market-panel">
-        <header class="panel-heading"><div><span class="section-label">MARKET SNAPSHOT</span><h2>{{ modeLabel }}</h2></div><span class="panel-date">{{ data.tradeDate }}</span></header>
-        <div class="market-balance"><div class="balance-side is-up"><span>上涨家数</span><strong>{{ integerText(marketValue('advancers')) }}</strong></div><div class="balance-line"><i :style="{ width: `${(marketValue('advancers') ?? 0) / Math.max((marketValue('advancers') ?? 0) + (marketValue('decliners') ?? 0) + (marketValue('unchanged') ?? 0), 1) * 100}%` }"></i></div><div class="balance-side is-down"><span>下跌家数</span><strong>{{ integerText(marketValue('decliners')) }}</strong></div></div>
-        <div class="market-inline"><span>平盘 {{ integerText(marketValue('unchanged')) }}</span><span>涨跌比 {{ marketValue('advancers') !== null && marketValue('decliners') ? `${(marketValue('advancers')! / marketValue('decliners')!).toFixed(2)}` : '--' }}</span></div>
-        <div class="market-stat-grid"><div><span>股票总数</span><strong>{{ integerText(marketValue('totalStocks')) }}</strong></div><div><span>涨停</span><strong>{{ integerText(marketValue('limitUp')) }}</strong></div><div><span>跌停</span><strong>{{ integerText(marketValue('limitDown')) }}</strong></div><div><span>炸板</span><strong>{{ integerText(marketValue('brokenBoard')) }}</strong></div><div><span>炸板率</span><strong>{{ percentText(marketValue('brokenBoardRate')) }}</strong></div><div><span>两市成交额</span><strong>{{ amountText(marketValue('totalAmount')) }}</strong></div><div><span>成交额变化</span><strong>{{ percentText(marketValue('amountChange')) }}</strong></div></div>
-      </article>
-
-      <article class="sentiment-panel board-panel"><header class="panel-heading"><div><span class="section-label">LIMIT-UP LADDER</span><h2>连板结构</h2></div><span class="panel-note">无数据以 -- 展示</span></header><div class="ladder-list"><div><span>二板</span><b>{{ integerText(marketValue('board2')) }}</b></div><div><span>三板</span><b>{{ integerText(marketValue('board3')) }}</b></div><div><span>四板+</span><b>{{ integerText(marketValue('board4Plus')) }}</b></div></div><div class="ladder-foot"><span>涨停家数</span><strong>{{ integerText(marketValue('limitUp')) }}</strong></div></article>
-    </section>
-
-    <section class="sentiment-panel history-panel"><header class="panel-heading"><div><span class="section-label">60 TRADING DAYS</span><h2>情绪历史</h2></div><span class="panel-note">实时保存的交易日数据</span></header><div v-if="history.length" class="history-chart"><div v-for="item in history.slice().reverse()" :key="`${item.tradeDate}-${item.marketSentiment}`" class="history-bar" :title="`${item.tradeDate} ${scoreText(item.marketSentiment)}`"><i :class="scoreTone(item.marketSentiment)" :style="{ height: `${item.marketSentiment ?? 0}%` }"></i></div></div><p v-else class="empty-state">暂无历史记录，首次行情成功后将开始记录。</p><div v-if="history.length" class="history-latest"><span>{{ history[history.length - 1]?.tradeDate }}</span><span>最高 {{ scoreText(Math.max(...history.map((item) => item.marketSentiment ?? 0))) }}</span><span>当前 {{ scoreText(data.marketSentiment) }}</span></div></section>
-    <section class="sentiment-panel detail-panel"><header class="panel-heading"><div><span class="section-label">LADDER & PROFIT</span><h2>连板、接力与赚钱效应</h2></div></header><div class="market-stat-grid"><div><span>一板</span><strong>{{ integerText(marketValue('board1')) }}</strong></div><div><span>二板</span><strong>{{ integerText(marketValue('board2')) }}</strong></div><div><span>三板</span><strong>{{ integerText(marketValue('board3')) }}</strong></div><div><span>四板+</span><strong>{{ integerText(marketValue('board4Plus')) }}</strong></div><div><span>五板</span><strong>{{ integerText(marketValue('board5')) }}</strong></div><div><span>六板</span><strong>{{ integerText(marketValue('board6')) }}</strong></div><div><span>七板+</span><strong>{{ integerText(marketValue('board7Plus')) }}</strong></div><div><span>一进二</span><strong>{{ percentText(marketValue('advanceToSecond')) }}</strong></div><div><span>二进三</span><strong>{{ percentText(marketValue('secondToThird')) }}</strong></div><div><span>三进四</span><strong>{{ percentText(marketValue('thirdToFourth')) }}</strong></div><div><span>四进五</span><strong>{{ percentText(marketValue('fourthToFifth')) }}</strong></div><div><span>昨日涨停平均收益</span><strong>{{ percentText(marketValue('yesterdayLimitUpReturn')) }}</strong></div><div><span>昨日涨停中位数</span><strong>{{ percentText(marketValue('yesterdayLimitUpMedianReturn')) }}</strong></div><div><span>昨日涨停上涨比例</span><strong>{{ percentText(marketValue('yesterdayLimitUpRiseRatio')) }}</strong></div><div><span>昨日连板收益</span><strong>{{ percentText(marketValue('yesterdayLadderReturn')) }}</strong></div><div><span>昨日最高板收益</span><strong>{{ percentText(marketValue('leaderReturn')) }}</strong></div></div></section>
+    <section class="sentiment-panel limit-up-codes-panel"><header class="panel-heading"><div><span class="section-label">LIMIT-UP STOCKS</span><h2>当前涨停股票</h2></div><span class="panel-note">{{ limitUpCodes.length }} 只</span></header><div v-if="limitUpCodes.length" class="limit-up-code-list"><span v-for="code in limitUpCodes" :key="code">{{ code }}</span></div><p v-else class="empty-state">暂无涨停股票代码，刷新实时行情后自动更新。</p></section>
 
   </main>
 </template>

@@ -60,10 +60,12 @@ export type SentimentSnapshot = SentimentHistoryItem & {
     yesterdayLadderReturn: number | null
     leaderReturn: number | null
     amountChange: number | null
+    limitUpCodes: string[]
   }
 }
 
 type MarketStock = {
+  code: string | null
   price: number | null
   changePercent: number | null
   amount: number | null
@@ -87,6 +89,7 @@ const sentimentHistory: SentimentHistoryItem[] = []
 
 const CACHE_MS = 8_000
 const LIMIT_RATE = 9.8
+const MIN_VALID_MARKET_STOCKS = 3000
 
 const asNumber = (value: unknown) => {
   const number = typeof value === 'number' ? value : Number(value)
@@ -136,6 +139,7 @@ const emptyMarket = (): SentimentSnapshot['market'] => ({
   advanceToSecond: null, secondToThird: null, thirdToFourth: null, fourthToFifth: null,
   yesterdayLimitUpReturn: null, yesterdayLimitUpMedianReturn: null, yesterdayLimitUpRiseRatio: null,
   yesterdayLadderReturn: null, leaderReturn: null, amountChange: null
+  , limitUpCodes: []
 })
 
 const toTradeDate = (date = new Date()) => {
@@ -167,6 +171,27 @@ const createUnavailableSnapshot = (error: string): SentimentSnapshot => ({
 })
 
 const fetchMarketStocks = async () => {
+  const rows = await fetchMarketRows()
+  console.log('fetched rows:  ', rows)
+  const stocks = rows.map((item): MarketStock => ({
+    code: typeof item.f12 === 'string' ? item.f12 : null,
+    price: asNumber(item.f2),
+    changePercent: asNumber(item.f3),
+    amount: asNumber(item.f6)
+  })).filter((item) => item.price !== null || item.changePercent !== null)
+  if (!stocks.length) {
+    const response = await $fetch<string>('https://qt.gtimg.cn/q=sh000001,sz399001,sz399006', {
+      headers: { referer: 'https://gu.qq.com/', 'user-agent': 'Mozilla/5.0' },
+      timeout: 3500,
+      retry: 0
+    }).catch(() => '')
+    // console.log(response)
+    const indexValues = response.split('~').map((value) => asNumber(value)).filter((value): value is number => value !== null)
+    if (!indexValues.length) throw new Error('all market data sources failed')
+    return indexValues.map((changePercent): MarketStock => ({ code: null, price: null, changePercent, amount: null }))
+  }
+  return stocks
+/*
   const response = await $fetch<EastmoneyListResponse>('https://push2.eastmoney.com/api/qt/clist/get', {
     headers: {
       referer: 'https://quote.eastmoney.com/center/gridlist.html',
@@ -193,9 +218,14 @@ const fetchMarketStocks = async () => {
       amount: asNumber(item.f6)
     }))
     .filter((item) => item.price !== null || item.changePercent !== null)
+*/
 }
 
 const calculateSnapshot = (stocks: MarketStock[]): SentimentSnapshot => {
+  if (stocks.length < MIN_VALID_MARKET_STOCKS) {
+    throw new Error(`market breadth source returned only ${stocks.length} stocks`)
+  }
+
   const validChanges = stocks
     .map((stock) => stock.changePercent)
     .filter((value): value is number => value !== null)
@@ -214,6 +244,9 @@ const calculateSnapshot = (stocks: MarketStock[]): SentimentSnapshot => {
   const limitDown = validChanges.filter((value) => value <= -LIMIT_RATE).length
   const amounts = stocks.map((stock) => stock.amount).filter((value): value is number => value !== null)
   const totalAmount = amounts.length ? amounts.reduce((sum, value) => sum + value, 0) : null
+  const limitUpCodes = stocks
+    .filter((stock) => stock.changePercent !== null && stock.changePercent >= LIMIT_RATE && stock.code)
+    .map((stock) => stock.code as string)
 
   const breadthScore = average([
     upRatio,
@@ -284,6 +317,7 @@ const calculateSnapshot = (stocks: MarketStock[]): SentimentSnapshot => {
       , advanceToSecond: null, secondToThird: null, thirdToFourth: null, fourthToFifth: null
       , yesterdayLimitUpReturn: null, yesterdayLimitUpMedianReturn: null, yesterdayLimitUpRiseRatio: null
       , yesterdayLadderReturn: null, leaderReturn: null, amountChange: null
+      , limitUpCodes
     }
   }
 }
@@ -305,12 +339,94 @@ export const getSentimentSnapshot = async (): Promise<SentimentSnapshot> => {
   }
 }
 
+const eastmoneyHosts = ['https://push2.eastmoney.com', 'https://push2his.eastmoney.com', 'https://82.push2.eastmoney.com']
+
+const fetchMarketPage = async (host: string, page: number) => {
+  const response = await $fetch<EastmoneyListResponse>(`${host}/api/qt/clist/get`, {
+    headers: { referer: 'https://quote.eastmoney.com/center/gridlist.html', 'user-agent': 'Mozilla/5.0' },
+    query: { pn: page, pz: 1000, po: 1, np: 1, fltt: 2, invt: 2, fid: 'f3', fs: 'm:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23', fields: 'f2,f3,f5,f6,f12,f14' },
+    timeout: 4500,
+    retry: 0
+  })
+  return response.data?.diff ?? []
+}
+
+const isAStockCode = (value: unknown): value is string => /^(0|3|6)\d{5}$/.test(String(value ?? ''))
+
+const uniqueMarketRows = (rows: Array<Record<string, number | string | null>>) => {
+  const unique = new Map<string, Record<string, number | string | null>>()
+
+  for (const row of rows) {
+    const code = String(row.f12 ?? '')
+    if (isAStockCode(code) && (row.f2 !== null || row.f3 !== null)) {
+      unique.set(code, { ...row, f12: code })
+    }
+  }
+
+  return [...unique.values()]
+}
+
+type SinaMarketRow = {
+  symbol?: string
+  name?: string
+  trade?: string | number
+  changepercent?: string | number
+  amount?: string | number
+}
+
+const fetchSinaMarketPage = async (page: number) => {
+  const rows = await $fetch<SinaMarketRow[]>('https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getHQNodeData', {
+    query: { page, num: 100, sort: 'changepercent', asc: 0, node: 'hs_a' },
+    headers: { referer: 'https://finance.sina.com.cn/', 'user-agent': 'Mozilla/5.0' },
+    timeout: 4500,
+    retry: 0
+  })
+
+  return (Array.isArray(rows) ? rows : []).map((row) => ({
+    f12: row.symbol?.replace(/^(sh|sz)/i, '') ?? null,
+    f14: row.name ?? null,
+    f2: asNumber(row.trade),
+    f3: asNumber(row.changepercent),
+    f5: null,
+    f6: asNumber(row.amount)
+  }))
+}
+
+const fetchMarketRows = async () => {
+  let bestRows: Array<Record<string, number | string | null>> = []
+
+  for (const host of eastmoneyHosts) {
+    const pages = await Promise.allSettled(Array.from({ length: 6 }, (_, index) => fetchMarketPage(host, index + 1)))
+    const rows = uniqueMarketRows(pages.flatMap((result) => result.status === 'fulfilled' ? result.value : []))
+    const failures = pages.filter((result) => result.status === 'rejected').length
+    if (rows.length > bestRows.length) bestRows = rows
+    if (rows.length) {
+      console.info(`market breadth source ${host}: ${rows.length} unique stocks (${failures} page failures)`)
+    }
+    if (rows.length >= 1000) return rows
+  }
+
+  const sinaPages = await Promise.allSettled(Array.from({ length: 60 }, (_, index) => fetchSinaMarketPage(index + 1)))
+  const sinaRows = uniqueMarketRows(sinaPages.flatMap((result) => result.status === 'fulfilled' ? result.value : []))
+  const sinaFailures = sinaPages.filter((result) => result.status === 'rejected').length
+  if (sinaRows.length) {
+    console.info(`market breadth source sina: ${sinaRows.length} unique stocks (${sinaFailures} page failures)`)
+  }
+  if (sinaRows.length >= 1000) {
+    return sinaRows
+  }
+
+  if (sinaRows.length > bestRows.length) bestRows = sinaRows
+  return bestRows
+}
+
 export const getPreviousSentimentSnapshot = async (event: H3Event) => {
   const db = (event.context.cloudflare?.env as Record<string, unknown> | undefined)?.DB as any
   if (!db?.prepare) return null
   const result = await db.prepare(`SELECT * FROM market_sentiment ORDER BY trade_date DESC LIMIT 1`).all()
   const row = result.results?.[0]
   if (!row) return null
+  if (Number(row.total_stocks) < MIN_VALID_MARKET_STOCKS) return null
   return {
     tradeDate: row.trade_date, updatedAt: row.updated_at, marketSentiment: row.market_sentiment,
     profitScore: row.profit_score, speculationScore: row.speculation_score, breadthScore: row.breadth_score,
@@ -326,7 +442,8 @@ export const getPreviousSentimentSnapshot = async (event: H3Event) => {
       secondToThird: row.second_to_third, thirdToFourth: row.third_to_fourth, fourthToFifth: row.fourth_to_fifth,
       yesterdayLimitUpReturn: row.yesterday_limit_up_return, yesterdayLimitUpMedianReturn: row.yesterday_limit_up_median_return,
       yesterdayLimitUpRiseRatio: row.yesterday_limit_up_rise_ratio, yesterdayLadderReturn: row.yesterday_ladder_return,
-      leaderReturn: row.leader_return, amountChange: row.amount_change
+      leaderReturn: row.leader_return, amountChange: row.amount_change,
+      limitUpCodes: (() => { try { return JSON.parse(row.limit_up_codes || '[]') } catch { return [] } })()
     }
   } as SentimentSnapshot
 }
@@ -364,8 +481,8 @@ export const saveSentimentSnapshot = async (event: H3Event, snapshot: SentimentS
         max_board_height, board_2_count, board_3_count, board_4_plus_count, total_amount,
         created_at, updated_at, total_stocks, board_1_count, board_5_count, board_6_count, board_7_plus_count,
         advance_to_second, second_to_third, third_to_fourth, fourth_to_fifth, yesterday_limit_up_return,
-        yesterday_limit_up_median_return, yesterday_limit_up_rise_ratio, yesterday_ladder_return, leader_return, amount_change
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        yesterday_limit_up_median_return, yesterday_limit_up_rise_ratio, yesterday_ladder_return, leader_return, amount_change, limit_up_codes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       snapshot.tradeDate, snapshot.marketSentiment, snapshot.profitScore, snapshot.speculationScore,
       snapshot.breadthScore, snapshot.limitScore, snapshot.liquidityScore, snapshot.riskScore,
@@ -378,7 +495,7 @@ export const saveSentimentSnapshot = async (event: H3Event, snapshot: SentimentS
       snapshot.market.advanceToSecond, snapshot.market.secondToThird, snapshot.market.thirdToFourth,
       snapshot.market.fourthToFifth, snapshot.market.yesterdayLimitUpReturn, snapshot.market.yesterdayLimitUpMedianReturn,
       snapshot.market.yesterdayLimitUpRiseRatio, snapshot.market.yesterdayLadderReturn, snapshot.market.leaderReturn,
-      snapshot.market.amountChange
+      snapshot.market.amountChange, JSON.stringify(snapshot.market.limitUpCodes)
     ).run()
     return
   }
