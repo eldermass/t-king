@@ -16,6 +16,7 @@ type Sentiment = {
   error: string | null
   market: Record<string, number | string[] | null>
 }
+type SentimentPageData = { snapshot: Sentiment | null; history: HistoryItem[] }
 type HistoryItem = Pick<Sentiment, 'tradeDate' | 'marketSentiment' | 'profitScore' | 'speculationScore' | 'breadthScore' | 'riskScore' | 'phase' | 'momentum'>
 type DetailItem = { label: string; value: string }
 
@@ -31,7 +32,6 @@ const history = ref<HistoryItem[]>([])
 const loading = ref(true)
 const refreshing = ref(false)
 const loadError = ref('')
-const viewMode = ref<'live' | 'close'>('live')
 
 const metricDefinitions: Array<{ key: MetricKey; label: string; note: string }> = [
   { key: 'profitScore', label: '赚钱效应', note: '昨日强势股今日表现' },
@@ -62,7 +62,7 @@ const marketValue = (key: string) => {
 }
 const limitUpCodes = computed(() => Array.isArray(data.value.market.limitUpCodes) ? data.value.market.limitUpCodes as string[] : [])
 const percentText = (value: number | null) => value === null ? '--' : `${(value * 100).toFixed(1)}%`
-const modeLabel = computed(() => viewMode.value === 'live' ? '实时行情' : '上个交易日收盘')
+const modeLabel = '数据库行情'
 const metricDetails = (key: MetricKey): DetailItem[] => {
   const value = (field: string, label: string, formatter: (item: number | null) => string = integerText): DetailItem => ({ label, value: formatter(marketValue(field)) })
   const percent = (field: string, label: string) => value(field, label, percentText)
@@ -78,13 +78,14 @@ const load = async (initial = false) => {
   if (initial) loading.value = true
   else refreshing.value = true
   try {
-    const [snapshot, records] = await Promise.all([
-      $fetch<Sentiment>(`/api/market/sentiment${viewMode.value === 'close' ? '?mode=close' : ''}`),
-      $fetch<HistoryItem[]>('/api/market/sentiment/history?days=60')
-    ])
-    data.value = snapshot
-    history.value = records
-    loadError.value = snapshot.error ?? ''
+    const response = await $fetch<SentimentPageData>('/api/market/sentiment')
+    if (response.snapshot) {
+      data.value = response.snapshot
+      loadError.value = response.snapshot.error ?? ''
+    } else {
+      loadError.value = '暂无已保存的行情数据，请点击刷新行情'
+    }
+    history.value = response.history
   } catch {
     loadError.value = '行情获取失败'
   } finally {
@@ -93,8 +94,17 @@ const load = async (initial = false) => {
   }
 }
 
-const setMode = (mode: 'live' | 'close') => { if (viewMode.value !== mode) { viewMode.value = mode; load(true) } }
-const refresh = () => load()
+const refresh = async () => {
+  refreshing.value = true
+  loadError.value = ''
+  try {
+    await $fetch('/api/market/sentiment/refresh', { method: 'POST' })
+    await load(true)
+  } catch (error: any) {
+    loadError.value = error?.data?.statusMessage || '行情抓取失败，数据库未更新'
+    refreshing.value = false
+  }
+}
 
 const logout = async () => {
   await $fetch('/api/auth/logout', { method: 'POST' })
@@ -114,8 +124,8 @@ onMounted(() => {
         <h1>A股市场情绪</h1>
       </div>
       <div class="topbar-actions">
-        <button class="refresh-btn" type="button" :disabled="refreshing" @click="refresh"><span aria-hidden="true">↻</span>{{ refreshing ? '刷新中' : '刷新行情' }}</button>
-        <div class="mode-switch" role="group" aria-label="行情模式"><button type="button" :class="{ 'is-active': viewMode === 'live' }" @click="setMode('live')">实时行情</button><button type="button" :class="{ 'is-active': viewMode === 'close' }" @click="setMode('close')">上个交易日收盘</button></div>
+        <span class="market-tip">实时行情</span>
+        <button class="refresh-btn" type="button" :disabled="refreshing" @click="refresh"><span aria-hidden="true">↻</span>{{ refreshing ? '抓取中' : '刷新行情' }}</button>
         <span class="market-tip" :class="{ 'is-busy': refreshing }">{{ refreshing ? '更新中' : data.updatedAt ? `更新于 ${new Date(data.updatedAt).toLocaleTimeString('zh-CN', { hour12: false })}` : '等待数据' }}</span>
         <NuxtLink class="ghost-link" to="/">看板</NuxtLink>
         <NuxtLink class="ghost-link" to="/ruler">刻度</NuxtLink>
@@ -139,7 +149,7 @@ onMounted(() => {
       </article>
     </section>
 
-    <section class="sentiment-panel limit-up-codes-panel"><header class="panel-heading"><div><span class="section-label">LIMIT-UP STOCKS</span><h2>当前涨停股票</h2></div><span class="panel-note">{{ limitUpCodes.length }} 只</span></header><div v-if="limitUpCodes.length" class="limit-up-code-list"><span v-for="code in limitUpCodes" :key="code">{{ code }}</span></div><p v-else class="empty-state">暂无涨停股票代码，刷新实时行情后自动更新。</p></section>
+    <section class="sentiment-panel limit-up-codes-panel"><header class="panel-heading"><div><span class="section-label">LIMIT-UP STOCKS</span><h2>当前涨停股票</h2></div><span class="panel-note">{{ limitUpCodes.length }} 只</span></header><div v-if="limitUpCodes.length" class="limit-up-code-list"><span v-for="code in limitUpCodes" :key="code">{{ code }}</span></div><p v-else class="empty-state">暂无涨停股票代码，刷新行情后自动更新。</p></section>
 
   </main>
 </template>

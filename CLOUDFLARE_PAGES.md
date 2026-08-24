@@ -2,6 +2,12 @@
 
 This project is configured for Nuxt + Nitro with the `cloudflare_pages` preset.
 
+## Local D1 development
+
+Use `npm run dev` to apply local D1 migrations, build the Pages Worker, and start Wrangler Pages Dev with the `DB` binding at `http://127.0.0.1:8788`.
+
+Use `npm run dev:nuxt` only for the Node-only Nuxt server when Cloudflare bindings are not needed.
+
 ## Pages
 
 - Framework preset: `Nuxt`

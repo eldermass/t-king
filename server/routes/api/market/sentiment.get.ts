@@ -1,18 +1,5 @@
-import { getQuery } from 'h3'
-import { getPreviousSentimentSnapshot, getSentimentSnapshot, saveSentimentSnapshot } from '~/server/utils/sentiment'
+import { getSentimentPageData } from '~/server/utils/sentiment'
 
 export default defineEventHandler(async (event) => {
-  if (getQuery(event).mode === 'close') return await getPreviousSentimentSnapshot(event) ?? getSentimentSnapshot()
-  const snapshot = await getSentimentSnapshot()
-
-  if (snapshot.stale) {
-    const closeSnapshot = await getPreviousSentimentSnapshot(event)
-    if (closeSnapshot) return { ...closeSnapshot, error: snapshot.error, stale: true }
-  }
-
-  if (!snapshot.stale) {
-    await saveSentimentSnapshot(event, snapshot)
-  }
-
-  return snapshot
+  return getSentimentPageData(event, 60)
 })

@@ -3,13 +3,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nuxt dev",
+    "dev": "wrangler d1 migrations apply DB --local --config wrangler.toml && npm run build && wrangler pages dev dist --d1 DB=t-king-db --persist-to .wrangler/state",
+    "dev:nuxt": "nuxt dev",
     "build": "nuxt build",
     "build:pages": "nuxt build --preset=cloudflare_pages",
     "preview": "nuxt preview"
   },
   "dependencies": {
     "nuxt": "^4.4.6",
+    "stock-sdk": "^2.4.2",
     "vue": "^3.5.35"
   }
 }

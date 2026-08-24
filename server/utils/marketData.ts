@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { throttledFetch } from './requestThrottle'
 
 export type MarketDataRow = {
   tradeDate: string
@@ -74,17 +75,17 @@ const writeLocal = async (row: MarketDataRow) => {
 }
 
 const fetchIndex = async (code: string) => {
-  const response = await $fetch<string>(`https://qt.gtimg.cn/q=${code}`, { headers: { referer: 'https://gu.qq.com/' }, timeout: 5000, retry: 1 }).catch(() => '')
+  const response = await throttledFetch<string>(`https://qt.gtimg.cn/q=${code}`, { headers: { referer: 'https://gu.qq.com/' }, timeout: 5000, retry: 0 }).catch(() => '')
   const parts = response.split('~')
   return { change: num(parts[32]), volume: num(parts[37]) }
 }
 
 const fetchStocks = async () => {
-  const response = await $fetch<{ data?: { diff?: Array<Record<string, unknown>> } }>('https://push2.eastmoney.com/api/qt/clist/get', {
+  const response = await throttledFetch<{ data?: { diff?: Array<Record<string, unknown>> } }>('https://push2.eastmoney.com/api/qt/clist/get', {
     headers: { referer: 'https://quote.eastmoney.com/center/gridlist.html', 'user-agent': 'Mozilla/5.0' },
     query: { pn: 1, pz: 6000, po: 1, np: 1, fltt: 2, invt: 2, fid: 'f3', fs: 'm:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23', fields: 'f3,f12' },
     timeout: 8000,
-    retry: 1
+    retry: 0
   }).catch(() => null)
   return response?.data?.diff ?? []
 }
