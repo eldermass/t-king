@@ -27,6 +27,7 @@ export type SentimentHistoryItem = {
   yesterdayLadderReturn: number | null
   leaderReturn: number | null
   amountChange: number | null
+  totalAmount: number | null
 }
 
 export type SentimentSnapshot = SentimentHistoryItem & {
@@ -171,6 +172,7 @@ const calculateSnapshot = (stocks: MarketStock[], limitUpCodes: string[]): Senti
 
   return {
     tradeDate: tradeDate(), updatedAt: new Date().toISOString(), marketSentiment,
+    totalAmount,
     profitScore, speculationScore, breadthScore, riskScore, limitScore, liquidityScore,
     momentum, phase: phaseFor(marketSentiment), stale: false, error: null,
     market: {
@@ -209,6 +211,7 @@ export const getPreviousSentimentSnapshot = async (event: H3Event) => {
   if (!row || Number(row.total_stocks) < MIN_VALID_MARKET_STOCKS) return null
   return {
     tradeDate: row.trade_date, updatedAt: row.updated_at, marketSentiment: row.market_sentiment,
+    totalAmount: row.total_amount,
     profitScore: row.profit_score, speculationScore: row.speculation_score, breadthScore: row.breadth_score,
     limitScore: row.limit_score, liquidityScore: row.liquidity_score, riskScore: row.risk_score,
     momentum: row.momentum, phase: row.phase, stale: true, error: null,
@@ -240,7 +243,8 @@ export const getSentimentHistory = async (event: H3Event, days: number) => {
   const result = await db.prepare(`
     SELECT trade_date AS tradeDate, market_sentiment AS marketSentiment,
       profit_score AS profitScore, speculation_score AS speculationScore,
-      breadth_score AS breadthScore, risk_score AS riskScore, phase, momentum
+      breadth_score AS breadthScore, risk_score AS riskScore, phase, momentum,
+      total_amount AS totalAmount
     FROM market_sentiment ORDER BY trade_date DESC LIMIT ?
   `).bind(days).all<SentimentHistoryItem>()
   return result.results ?? []

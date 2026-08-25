@@ -175,6 +175,7 @@ onBeforeUnmount(() => {
           {{ cloudStatusText }}
         </span>
         <NuxtLink class="ghost-link" to="/market/sentiment">情绪</NuxtLink>
+        <NuxtLink class="ghost-link" to="/market/limit">涨跌停</NuxtLink>
         <NuxtLink class="ghost-link" to="/h5">H5</NuxtLink>
         <NuxtLink class="ghost-link" to="/ruler">刻度</NuxtLink>
         <PushDeerSettingsButton />
