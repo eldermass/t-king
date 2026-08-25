@@ -160,7 +160,15 @@ const load = async (initial = false) => {
   else refreshing.value = true
   loadError.value = ''
   try {
-    history.value = await $fetch<HistoryItem[]>('/api/market/sentiment/history?days=60')
+    let readError = ''
+    // Load the persisted snapshot first so a refresh failure never blanks the last good view.
+    try {
+      const persisted = await $fetch<{ snapshot: Sentiment | null; history: HistoryItem[] }>('/api/market/sentiment')
+      if (persisted.snapshot) data.value = persisted.snapshot
+      history.value = persisted.history ?? []
+    } catch (error) {
+      readError = error instanceof Error ? error.message : '最近一次成功数据读取失败'
+    }
     const today = tradeDate()
     const previous = history.value.find((item) => item.tradeDate !== today)
     const previousTradeDate = await sdk.calendar.prevTradingDay()
@@ -171,14 +179,27 @@ const load = async (initial = false) => {
     const previousQuotes = previousCodes.length ? await sdk.quotes.cnSimple(previousCodes) : []
     const previousLimitUp = calculatePreviousLimitUpPerformance(previousLimitUps, previousQuotes)
     const snapshot = calculateSnapshot(quotes, limitUps, limitDowns, brokenBoards, previous, previousLimitUp)
-    const marketData = marketDataFromSnapshot(snapshot, indexQuotes)
-    await Promise.all([
-      $fetch('/api/market/sentiment', { method: 'POST', body: snapshot }),
-      $fetch('/api/market/data', { method: 'POST', body: marketData })
-    ])
+    // Make the SDK result visible immediately. Persistence is best-effort and must not
+    // discard a valid live snapshot when D1 is temporarily unavailable.
     data.value = snapshot
     history.value = [asHistory(snapshot), ...history.value.filter((item) => item.tradeDate !== snapshot.tradeDate)].slice(0, 60)
-  } catch (error) { loadError.value = error instanceof Error ? error.message : 'stock-sdk 行情获取失败' } finally { loading.value = false; refreshing.value = false }
+    const persistenceTasks: Promise<unknown>[] = [$fetch('/api/market/sentiment', { method: 'POST', body: snapshot })]
+    try {
+      persistenceTasks.push($fetch('/api/market/data', { method: 'POST', body: marketDataFromSnapshot(snapshot, indexQuotes) }))
+    } catch (error) {
+      loadError.value = error instanceof Error ? error.message : '指数行情暂不可用，情绪数据已更新'
+    }
+    const persistence = await Promise.allSettled(persistenceTasks)
+    const failed = persistence.find((result): result is PromiseRejectedResult => result.status === 'rejected')
+    if (failed && !loadError.value) {
+      const reason = failed.reason
+      const statusMessage = reason?.data?.statusMessage || reason?.statusMessage
+      loadError.value = statusMessage || (reason instanceof Error ? reason.message : '行情已更新，但保存失败')
+    }
+    if (!loadError.value && readError) loadError.value = readError
+  } catch (error) {
+    loadError.value = error instanceof Error ? error.message : 'stock-sdk 行情获取失败'
+  } finally { loading.value = false; refreshing.value = false }
 }
 const refresh = () => load()
 const logout = async () => { await $fetch('/api/auth/logout', { method: 'POST' }); await navigateTo('/login') }

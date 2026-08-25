@@ -262,7 +262,7 @@ export const saveSentimentSnapshot = async (event: H3Event, snapshot: SentimentS
       created_at, updated_at, total_stocks, board_1_count, board_5_count, board_6_count, board_7_plus_count,
       advance_to_second, second_to_third, third_to_fourth, fourth_to_fifth, yesterday_limit_up_return,
       yesterday_limit_up_median_return, yesterday_limit_up_rise_ratio, yesterday_ladder_return, leader_return, amount_change, limit_up_codes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     snapshot.tradeDate, snapshot.marketSentiment, snapshot.profitScore, snapshot.speculationScore,
     snapshot.breadthScore, snapshot.limitScore, snapshot.liquidityScore, snapshot.riskScore,
