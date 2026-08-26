@@ -260,7 +260,7 @@ input {
 .stock-grid {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: calc((100% - 28px) / 3);
+  grid-auto-columns: calc((100% - 28px) / 3 + 24px);
   gap: 14px;
   align-items: start;
   overflow-x: auto;
@@ -270,6 +270,7 @@ input {
 }
 
 .stock-card {
+  min-width: 0;
   position: relative;
   background: var(--panel);
   backdrop-filter: blur(8px);
@@ -715,6 +716,64 @@ td input:focus {
   font-size: 1.02rem;
 }
 
+.buy-table {
+  min-width: 0;
+}
+
+.buy-table-wrap {
+  overflow: hidden;
+}
+
+.buy-table th:nth-child(1),
+.buy-table td:nth-child(1) {
+  width: 22%;
+}
+
+.buy-table th:nth-child(2),
+.buy-table td:nth-child(2) {
+  width: 18%;
+}
+
+.buy-table th:nth-child(3),
+.buy-table td:nth-child(3) {
+  width: 17%;
+}
+
+.buy-table th:nth-child(4),
+.buy-table td:nth-child(4) {
+  width: 15%;
+}
+
+.buy-table th:nth-child(5),
+.buy-table td:nth-child(5) {
+  width: 20%;
+}
+
+.buy-table th:nth-child(6),
+.buy-table td:nth-child(6) {
+  width: 8%;
+}
+
+.current-profit-text {
+  font-weight: 800;
+}
+
+.current-profit-text.is-profit {
+  color: var(--accent);
+}
+
+.current-profit-text.is-loss {
+  color: var(--accent-2);
+}
+
+.current-profit-text.is-flat {
+  color: var(--muted);
+}
+
+.current-profit-text.number-alert-red-1 {
+  color: var(--accent);
+}
+
 .number-alert-green,
 .number-alert-red-1,
 .number-alert-red-2,
@@ -892,6 +951,13 @@ td input:focus {
   margin-top: 4px;
 }
 
+.risk-warning-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .risk-warning-textarea {
   min-height: 88px;
   border-color: rgba(198, 79, 52, 0.22);
@@ -901,6 +967,24 @@ td input:focus {
 .risk-warning-textarea:focus {
   border-color: rgba(198, 79, 52, 0.4);
   box-shadow: 0 0 0 3px rgba(198, 79, 52, 0.1);
+}
+
+.risk-warning-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.risk-warning-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
 }
 
 .h5-card-actions {
@@ -1248,6 +1332,7 @@ td input:focus {
   }
 
   .stock-card {
+    min-width: 0;
     border-radius: 18px;
     padding: 20px 12px 12px;
   }

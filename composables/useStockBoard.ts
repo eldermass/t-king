@@ -301,6 +301,7 @@ export const useStockBoard = () => {
   const quotes = useState<Record<string, QuoteState>>('stock-board-quotes', () => ({}))
   const profileStatuses = useState<Record<string, RequestStatus>>('stock-board-profile-statuses', () => ({}))
   const alertStates = useState<Record<string, AlertState>>('stock-board-alert-states', () => ({}))
+  const riskWarningEnabled = useState<Record<string, boolean>>('stock-board-risk-warning-enabled', () => ({}))
   const notificationSettings = useState<NotificationSettings>('stock-board-notification-settings', () => defaultBoardPayload().notifications)
   const hydrated = useState<boolean>('stock-board-hydrated', () => false)
   const quoteLoading = useState<boolean>('stock-board-quote-loading', () => false)
@@ -489,6 +490,42 @@ export const useStockBoard = () => {
   const latestAddProfitAmountTone = (stock: StockCard) => toneByValue(latestAddProfit(stock), 'is-loss')
 
   const latestAddProfitRateTone = (stock: StockCard) => toneByValue(latestAddProfitRate(stock), 'is-soft-loss')
+
+  const entryCurrentProfit = (stock: StockCard, entry: BuyEntry) => {
+    if (entry.buyPrice === null || entry.buyPrice <= 0 || entry.lots === null || entry.lots === 0) {
+      return null
+    }
+
+    const livePrice = quoteFor(stock.code).price
+
+    if (livePrice === null || livePrice <= 0) {
+      return null
+    }
+
+    if (entry.lots < 0) {
+      const sellPrice = plannedSellPrice(entry)
+
+      return sellPrice === null
+        ? null
+        : (sellPrice - livePrice) * Math.abs(entry.lots) * 100
+    }
+
+    return (livePrice - entry.buyPrice) * entry.lots * 100
+  }
+
+  const entryCurrentProfitTone = (stock: StockCard, entry: BuyEntry) =>
+    toneByValue(entryCurrentProfit(stock, entry), 'is-loss')
+
+  const isRiskWarningTriggered = (stock: StockCard, entry: BuyEntry) => {
+    if (!riskWarningEnabled.value[stock.id] || entry.lots === null || entry.lots >= 0) {
+      return false
+    }
+
+    const livePrice = quoteFor(stock.code).price
+    const sellPrice = plannedSellPrice(entry)
+
+    return livePrice !== null && livePrice > 0 && sellPrice !== null && livePrice < sellPrice
+  }
 
   const markerStartPrice = (stock: StockCard, field: 'riseStartPrice' | 'pullbackStartPrice') => {
     const value = stock[field]
@@ -899,8 +936,16 @@ export const useStockBoard = () => {
     return 0
   }
 
-  const isSellTriggered = (stockId: string, entryId: string) =>
-    alertStates.value[stockId]?.triggeredSellEntryIds.includes(entryId) ?? false
+  const isSellTriggered = (stockId: string, entryId: string) => {
+    const stock = stocks.value.find((item) => item.id === stockId)
+    const entry = stock?.buyEntries.find((item) => item.id === entryId)
+
+    if (entry?.lots !== null && entry?.lots !== undefined && entry.lots < 0) {
+      return false
+    }
+
+    return alertStates.value[stockId]?.triggeredSellEntryIds.includes(entryId) ?? false
+  }
 
   const dipAlertClass = (stockId: string, alert: DipAlert) => {
     const triggered = alertStates.value[stockId]?.triggeredDipAlertIds.includes(alert.id) ?? false
@@ -1391,6 +1436,7 @@ export const useStockBoard = () => {
     quotes,
     profileStatuses,
     alertStates,
+    riskWarningEnabled,
     notificationSettings,
     hydrated,
     quoteLoading,
@@ -1412,6 +1458,9 @@ export const useStockBoard = () => {
     latestAddProfitRate,
     latestAddProfitAmountTone,
     latestAddProfitRateTone,
+    entryCurrentProfit,
+    entryCurrentProfitTone,
+    isRiskWarningTriggered,
     priceMarkerSpread,
     priceMarkerRate,
     holdingCycle,

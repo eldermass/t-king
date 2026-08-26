@@ -137,7 +137,7 @@ const fetchTencentQuotes = async (codes: string[]) => {
       return {}
     }
 
-    const text = await response.text()
+    const text = decodeSinaQuoteText(await response.arrayBuffer())
     const result: Record<string, QuoteSnapshot> = {}
     const linePattern = /v_(sh|sz)(\d{6})="([^"]*)";/g
     let match: RegExpExecArray | null = null

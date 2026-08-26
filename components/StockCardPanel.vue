@@ -46,6 +46,10 @@ const {
   latestAddProfitRate,
   latestAddProfitAmountTone,
   latestAddProfitRateTone,
+  entryCurrentProfit,
+  entryCurrentProfitTone,
+  riskWarningEnabled,
+  isRiskWarningTriggered,
   priceMarkerSpread,
   priceMarkerRate,
   investedAmount,
@@ -225,14 +229,15 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
         </button>
       </div>
 
-      <div class="table-wrap">
-        <table>
+      <div class="table-wrap buy-table-wrap">
+        <table class="buy-table">
           <thead>
             <tr>
               <th>买入价</th>
               <th>涨幅</th>
               <th>卖价</th>
               <th>手数</th>
+              <th>当前盈亏</th>
               <th>删</th>
             </tr>
           </thead>
@@ -266,7 +271,16 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
                   @input="handleLotsInput(entry)"
                 />
               </td>
-              <td class="action-cell">
+              <td
+                class="current-profit-text"
+                :class="[
+                  entryCurrentProfitTone(stock, entry),
+                  { 'number-alert-red-1': isRiskWarningTriggered(stock, entry) }
+                ]"
+              >
+                {{ entryCurrentProfit(stock, entry) === null ? '--' : `${entryCurrentProfit(stock, entry) > 0 ? '+' : ''}${formatAmount(entryCurrentProfit(stock, entry))}` }}
+              </td>
+              <td class="action-cell" style="transform: translateX(-10px);">
                 <button class="icon-btn" type="button" @click="removeBuyEntry(stock, entry.id)">
                   删
                 </button>
@@ -457,7 +471,13 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
         </label>
 
         <label class="info-field info-field-wide risk-warning-field">
-          <span>风险警告</span>
+          <div class="risk-warning-head">
+            <span>风险警告</span>
+            <div class="risk-warning-toggle">
+              <input v-model="riskWarningEnabled[stock.id]" type="checkbox" />
+              <span>开启提醒</span>
+            </div>
+          </div>
           <textarea
             v-model="stock.riskWarning"
             class="info-textarea risk-warning-textarea"
