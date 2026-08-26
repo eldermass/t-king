@@ -48,7 +48,6 @@ const {
   latestAddProfitRateTone,
   entryCurrentProfit,
   entryCurrentProfitTone,
-  riskWarningEnabled,
   isRiskWarningTriggered,
   priceMarkerSpread,
   priceMarkerRate,
@@ -474,7 +473,7 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
           <div class="risk-warning-head">
             <span>风险警告</span>
             <div class="risk-warning-toggle">
-              <input v-model="riskWarningEnabled[stock.id]" type="checkbox" />
+              <input v-model="stock.riskWarningEnabled" type="checkbox" />
               <span>开启提醒</span>
             </div>
           </div>

@@ -15,6 +15,7 @@ const stockFingerprint = (stock: StockCard) =>
   JSON.stringify({
     name: stock.name.trim(),
     code: normalizeCode(stock.code),
+    riskWarningEnabled: stock.riskWarningEnabled,
     buyEntries: stock.buyEntries.map((entry) => ({
       buyPrice: entry.buyPrice,
       targetRate: entry.targetRate,
@@ -96,7 +97,16 @@ const isReminderStillTriggered = (stock: StockCard, quote: QuoteSnapshot | undef
   }
 
   const price = plannedSellPrice(entry)
-  return price !== null && quote.price >= price
+
+  if (price === null) {
+    return false
+  }
+
+  if (entry.lots !== null && entry.lots < 0) {
+    return stock.riskWarningEnabled && quote.price < price
+  }
+
+  return quote.price >= price
 }
 
 const formatPrice = (value: number | null) => value === null ? '--' : value.toFixed(2)

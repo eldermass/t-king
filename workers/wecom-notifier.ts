@@ -30,6 +30,7 @@ type StockCard = {
   secondaryTheme: string
   coreBusiness: string
   riskWarning: string
+  riskWarningEnabled: boolean
   riseStartPrice: number | null
   pullbackStartPrice: number | null
   recommendedDipAlertId?: string | null
@@ -146,6 +147,7 @@ const stockFingerprint = (stock: StockCard) =>
   JSON.stringify({
     name: stock.name.trim(),
     code: normalizeCode(stock.code),
+    riskWarningEnabled: stock.riskWarningEnabled,
     buyEntries: stock.buyEntries.map((entry) => ({
       id: entry.id,
       buyPrice: entry.buyPrice,
@@ -174,6 +176,7 @@ const normalizeStock = (input: any): StockCard | null => {
     secondaryTheme: typeof input.secondaryTheme === 'string' ? input.secondaryTheme : '',
     coreBusiness: typeof input.coreBusiness === 'string' ? input.coreBusiness : '',
     riskWarning: typeof input.riskWarning === 'string' ? input.riskWarning : '',
+    riskWarningEnabled: typeof input.riskWarningEnabled === 'boolean' ? input.riskWarningEnabled : false,
     riseStartPrice: typeof input.riseStartPrice === 'number' ? input.riseStartPrice : null,
     pullbackStartPrice: typeof input.pullbackStartPrice === 'number' ? input.pullbackStartPrice : null,
     recommendedDipAlertId: typeof input.recommendedDipAlertId === 'string' ? input.recommendedDipAlertId : null,
@@ -673,6 +676,7 @@ const processBoard = async (env: Env, row: BoardRow, quotes: Record<string, Quot
   const pushDeerKey = next.pushDeerKey.trim()
   const reminderCount = Object.keys(next.activeReminders).length
   const riskWarnings = parsed.stocks
+    .filter((stock) => stock.riskWarningEnabled)
     .map((stock) => stock.riskWarning.trim())
     .filter((text) => text.length > 0)
 

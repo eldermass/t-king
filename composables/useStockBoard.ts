@@ -22,6 +22,7 @@ export type StockCard = {
   secondaryTheme: string
   coreBusiness: string
   riskWarning: string
+  riskWarningEnabled: boolean
   riseStartPrice: number | null
   pullbackStartPrice: number | null
   recommendedDipAlertId?: string | null
@@ -239,6 +240,7 @@ const defaultStocks = (): StockCard[] => [
     secondaryTheme: 'UTG / 折叠屏',
     coreBusiness: '研发、生产和销售触控显示器件材料、车载显示模组、超薄玻璃盖板（UTG）等电子显示器件与材料。',
     riskWarning: '',
+    riskWarningEnabled: false,
     riseStartPrice: null,
     pullbackStartPrice: null,
     recommendedDipAlertId: null,
@@ -255,6 +257,7 @@ const defaultStocks = (): StockCard[] => [
     secondaryTheme: '出海营销',
     coreBusiness: '提供全案推广、全案广告代理、出海广告投放及 AI 营销等一站式营销科技服务，覆盖品牌传播与效果投放。',
     riskWarning: '',
+    riskWarningEnabled: false,
     riseStartPrice: null,
     pullbackStartPrice: null,
     recommendedDipAlertId: null,
@@ -271,6 +274,7 @@ const defaultStocks = (): StockCard[] => [
     secondaryTheme: '跨境电商',
     coreBusiness: '为企业提供出海整合营销、数字营销、广告变现，以及 AI 数字创意、BI 决策、CI 智能化多云管理等出海数字化服务。',
     riskWarning: '',
+    riskWarningEnabled: false,
     riseStartPrice: null,
     pullbackStartPrice: null,
     recommendedDipAlertId: null,
@@ -301,7 +305,6 @@ export const useStockBoard = () => {
   const quotes = useState<Record<string, QuoteState>>('stock-board-quotes', () => ({}))
   const profileStatuses = useState<Record<string, RequestStatus>>('stock-board-profile-statuses', () => ({}))
   const alertStates = useState<Record<string, AlertState>>('stock-board-alert-states', () => ({}))
-  const riskWarningEnabled = useState<Record<string, boolean>>('stock-board-risk-warning-enabled', () => ({}))
   const notificationSettings = useState<NotificationSettings>('stock-board-notification-settings', () => defaultBoardPayload().notifications)
   const hydrated = useState<boolean>('stock-board-hydrated', () => false)
   const quoteLoading = useState<boolean>('stock-board-quote-loading', () => false)
@@ -517,7 +520,7 @@ export const useStockBoard = () => {
     toneByValue(entryCurrentProfit(stock, entry), 'is-loss')
 
   const isRiskWarningTriggered = (stock: StockCard, entry: BuyEntry) => {
-    if (!riskWarningEnabled.value[stock.id] || entry.lots === null || entry.lots >= 0) {
+    if (!stock.riskWarningEnabled || entry.lots === null || entry.lots >= 0) {
       return false
     }
 
@@ -657,6 +660,7 @@ export const useStockBoard = () => {
     JSON.stringify({
       name: stock.name.trim(),
       code: normalizeCode(stock.code),
+      riskWarningEnabled: stock.riskWarningEnabled,
       buyEntries: stock.buyEntries.map((entry) => ({
         buyPrice: entry.buyPrice,
         targetRate: entry.targetRate,
@@ -1269,6 +1273,7 @@ export const useStockBoard = () => {
       code: '',
       subIndustry: '',
       riskWarning: '',
+      riskWarningEnabled: false,
       riseStartPrice: null,
       pullbackStartPrice: null,
       primaryTheme: '',
@@ -1436,7 +1441,6 @@ export const useStockBoard = () => {
     quotes,
     profileStatuses,
     alertStates,
-    riskWarningEnabled,
     notificationSettings,
     hydrated,
     quoteLoading,

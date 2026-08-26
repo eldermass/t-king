@@ -16,6 +16,7 @@ export type StockLike = {
   id: string
   name: string
   code: string
+  riskWarningEnabled?: boolean
   buyEntries: BuyEntryLike[]
   dipAlerts: DipAlertLike[]
 }
@@ -72,6 +73,7 @@ export const dipPrice = (basePrice: number | null, dropRate: number) => {
 
 export const minimumSellPrice = (stock: StockLike) => {
   const prices = stock.buyEntries
+    .filter((entry) => entry.lots === null || entry.lots >= 0)
     .map((entry) => plannedSellPrice(entry))
     .filter((price): price is number => price !== null && price > 0)
 
@@ -124,7 +126,15 @@ export const evaluateStockTriggers = (stock: StockLike, livePrice: number | null
   for (const entry of stock.buyEntries) {
     const triggerPrice = plannedSellPrice(entry)
 
-    if (triggerPrice === null || livePrice < triggerPrice) {
+    if (triggerPrice === null) {
+      continue
+    }
+
+    if (entry.lots !== null && entry.lots < 0) {
+      if (!stock.riskWarningEnabled || livePrice >= triggerPrice) {
+        continue
+      }
+    } else if (livePrice < triggerPrice) {
       continue
     }
 
