@@ -3,7 +3,7 @@ import { StockSDK, type ZTPoolItem } from 'stock-sdk'
 
 type PoolItem = ZTPoolItem
 type ViewMode = 'ladder' | 'industry' | 'down'
-type StockItem = PoolItem & { board: number }
+type StockItem = PoolItem & { board: number; isStrong: boolean; isBroken: boolean }
 type GroupItem = { key: string; label: string; stocks: StockItem[] }
 
 const sdk = new StockSDK({
@@ -14,6 +14,9 @@ const sdk = new StockSDK({
 
 const limitUps = ref<PoolItem[]>([])
 const limitDowns = ref<PoolItem[]>([])
+const strongCodes = ref<Set<string>>(new Set())
+const brokenCodes = ref<Set<string>>(new Set())
+const todayLimitUpCount = ref(0)
 const loading = ref(true)
 const refreshing = ref(false)
 const error = ref('')
@@ -23,7 +26,12 @@ const viewMode = ref<ViewMode>('ladder')
 
 const numberValue = (value: number | null | undefined, fallback = 0) => Number.isFinite(value) ? Number(value) : fallback
 const stockBoard = (stock: PoolItem): number => Math.max(1, Math.round(numberValue(stock.continuousBoardCount, 1)))
-const stockItems = computed<StockItem[]>(() => limitUps.value.map((stock) => ({ ...stock, board: stockBoard(stock) })))
+const stockItems = computed<StockItem[]>(() => limitUps.value.map((stock) => ({
+  ...stock,
+  board: stockBoard(stock),
+  isStrong: strongCodes.value.has(stock.code),
+  isBroken: brokenCodes.value.has(stock.code)
+})))
 const maxBoard = computed(() => stockItems.value.reduce((max, stock) => Math.max(max, stock.board), 0))
 
 const ladderGroups = computed<GroupItem[]>(() => {
@@ -52,7 +60,12 @@ const groupByIndustry = (stocks: StockItem[]): GroupItem[] => {
 }
 
 const industryGroups = computed<GroupItem[]>(() => groupByIndustry(stockItems.value))
-const downStockItems = computed<StockItem[]>(() => limitDowns.value.map((stock) => ({ ...stock, board: 0 })))
+const downStockItems = computed<StockItem[]>(() => limitDowns.value.map((stock) => ({
+  ...stock,
+  board: 0,
+  isStrong: false,
+  isBroken: false
+})))
 const downIndustryGroups = computed<GroupItem[]>(() => groupByIndustry(downStockItems.value))
 
 const activeGroups = computed(() => {
@@ -70,10 +83,23 @@ const formatTime = (value: string | null | undefined) => {
 const formatAmount = (value: number | null | undefined) => {
   const amount = numberValue(value)
   if (!amount) return '--'
-  return amount >= 100000000 ? `${(amount / 100000000).toFixed(1)}亿` : `${(amount / 10000).toFixed(0)}万`
+  return `${(amount / 100000000).toFixed(2)}亿`
 }
 const formatChange = (value: number | null | undefined) => value === null || value === undefined ? '--' : `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
-const boardText = (stock: PoolItem) => stock.continuousBoardCount === null || stock.continuousBoardCount === undefined ? '--' : `${stock.continuousBoardCount}板`
+const isLargeAmount = (value: number | null | undefined) => numberValue(value) > 200000000
+const ztStatisticsText = (value: string | null | undefined) => {
+  const matched = value?.trim().match(/^(\d+)\s*\/\s*(\d+)$/)
+  if (!matched) return ''
+  const limitCount = Number(matched[1])
+  const dayCount = Number(matched[2])
+  return limitCount === dayCount ? '' : `${dayCount}天${limitCount}板`
+}
+const shanghaiDate = (value: Date) => {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(value)
+  const fields = Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]))
+  return `${fields.year}-${fields.month}-${fields.day}`
+}
+const displayDate = (value: string) => new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', dateStyle: 'long' }).format(new Date(`${value}T00:00:00+08:00`))
 const logout = async () => {
   await $fetch('/api/auth/logout', { method: 'POST' })
   await navigateTo('/login')
@@ -84,14 +110,38 @@ const load = async (isRefresh = false) => {
   else loading.value = true
   error.value = ''
   try {
-    const [upPool, downPool] = await Promise.all([
-      sdk.marketEvent.ztPool('zt'),
-      sdk.marketEvent.ztPool('dt')
+    const today = shanghaiDate(new Date())
+    const isTodayTradingDay = await sdk.calendar.isTradingDay(today)
+    const currentDate = isTodayTradingDay ? today : await sdk.calendar.prevTradingDay(today)
+    const previousDate = await sdk.calendar.prevTradingDay(currentDate)
+    const [upPool, previousUpPool, downPool, strongPool] = await Promise.all([
+      sdk.marketEvent.ztPool('zt', currentDate),
+      sdk.marketEvent.ztPool('zt', previousDate),
+      sdk.marketEvent.ztPool('dt', currentDate),
+      sdk.marketEvent.ztPool('strong', currentDate)
     ])
-    limitUps.value = upPool.filter((stock) => stock.code && stock.name)
+    const currentStocks = upPool.filter((stock) => stock.code && stock.name)
+    const currentCodes = new Set(currentStocks.map((stock) => stock.code))
+    const brokenStocks = previousUpPool
+      .filter((stock) => stock.code && stock.name && !currentCodes.has(stock.code) && stockBoard(stock) >= 2)
+      .map((stock) => ({
+        ...stock,
+        continuousBoardCount: stockBoard(stock) + 1,
+        firstBoardTime: null,
+        lastBoardTime: null,
+        boardAmount: null,
+        sealAmount: null,
+        changePercent: null,
+        failedCount: null,
+        ztStatistics: ''
+      }))
+    limitUps.value = [...currentStocks, ...brokenStocks]
     limitDowns.value = downPool.filter((stock) => stock.code && stock.name)
+    todayLimitUpCount.value = currentStocks.length
+    brokenCodes.value = new Set(brokenStocks.map((stock) => stock.code))
+    strongCodes.value = new Set(strongPool.filter((stock) => stock.code).map((stock) => stock.code))
     updatedAt.value = new Date().toISOString()
-    tradeDate.value = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', dateStyle: 'long' }).format(new Date())
+    tradeDate.value = displayDate(currentDate)
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '涨跌停数据获取失败'
   } finally {
@@ -126,7 +176,7 @@ onMounted(() => load())
     <p v-if="error" class="sentiment-alert">{{ error }}</p>
 
     <section class="limit-summary">
-      <article class="limit-summary-card limit-summary-up"><span>涨停</span><strong>{{ limitUps.length }}</strong><small>当前封板股票</small></article>
+      <article class="limit-summary-card limit-summary-up"><span>涨停</span><strong>{{ todayLimitUpCount }}</strong><small>当前封板股票</small></article>
       <article class="limit-summary-card limit-summary-down"><span>跌停</span><strong>{{ limitDowns.length }}</strong><small>当前跌停股票</small></article>
       <article class="limit-summary-card"><span>最高连板</span><strong>{{ maxBoard || '--' }}<i v-if="maxBoard">板</i></strong><small>连板高度</small></article>
       <article class="limit-summary-card"><span>炸板次数</span><strong>{{ totalBroken || '--' }}</strong><small>涨停池累计</small></article>
@@ -154,10 +204,20 @@ onMounted(() => load())
             <span>{{ group.stocks.length }}只</span>
           </div>
           <div class="limit-stock-grid">
-            <article v-for="stock in group.stocks" :key="stock.code" class="limit-stock">
-              <div class="limit-stock-meta"><span>{{ formatTime(stock.firstBoardTime) }}</span><b v-if="stock.failedCount">炸{{ stock.failedCount }}</b><em :class="{ 'is-down': viewMode === 'down' }">{{ formatChange(stock.changePercent) }}</em></div>
-              <strong class="limit-stock-name" :title="`${stock.name} ${stock.code}`">{{ stock.name }}</strong>
-              <div class="limit-stock-foot"><span>{{ viewMode === 'ladder' ? stock.industry || '其他' : viewMode === 'down' ? stock.industry || '其他' : `${stock.board}板` }}</span><em>{{ boardText(stock) }} · {{ formatAmount(stock.boardAmount) }}</em></div>
+            <article v-for="stock in group.stocks" :key="stock.code" class="limit-stock" :class="{ 'is-broken': stock.isBroken }">
+              <div class="limit-stock-meta">
+                <span>{{ formatTime(stock.firstBoardTime) }}</span>
+                <em class="limit-stock-amount" :class="{ 'is-large': isLargeAmount(viewMode === 'down' ? stock.sealAmount : stock.boardAmount) }">{{ formatAmount(viewMode === 'down' ? stock.sealAmount : stock.boardAmount) }}</em>
+                <em class="limit-stock-change" :class="{ 'is-down': viewMode === 'down' }">{{ formatChange(stock.changePercent) }}</em>
+              </div>
+              <div class="limit-stock-name-row">
+                <strong class="limit-stock-name" :title="`${stock.name} ${stock.code}`">{{ stock.name }}</strong>
+                <div class="limit-stock-signals">
+                  <b v-if="stock.isStrong" class="limit-stock-badge limit-stock-badge-strong">高</b>
+                  <b v-if="stock.failedCount" class="limit-stock-badge limit-stock-badge-broken">{{ stock.failedCount }}</b>
+                </div>
+              </div>
+              <div class="limit-stock-foot"><span :class="{ 'limit-stock-board': viewMode === 'industry' }">{{ viewMode === 'ladder' || viewMode === 'down' ? stock.industry || '其他' : `${stock.board}板` }}</span><em v-if="ztStatisticsText(stock.ztStatistics)" class="limit-stock-statistics">{{ ztStatisticsText(stock.ztStatistics) }}</em></div>
             </article>
           </div>
         </section>
