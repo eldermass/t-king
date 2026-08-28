@@ -74,6 +74,24 @@ const momentumText = computed(() => data.value.momentum === null ? '--' : `${dat
 const historyHigh = computed(() => history.value.length ? Math.max(...history.value.map((item) => item.marketSentiment ?? 0)) : null)
 const momentumTone = computed(() => data.value.momentum === null ? '' : data.value.momentum >= 0 ? 'is-up' : 'is-down')
 const scoreTone = (value: number | null, risk = false) => { if (value === null) return ''; const adjusted = risk ? 100 - value : value; return adjusted >= 60 ? 'is-strong' : adjusted <= 40 ? 'is-weak' : 'is-neutral' }
+const historyBarColor = (value: number | null) => {
+  if (value === null) return 'rgb(180, 180, 180)'
+  const score = Math.min(100, Math.max(0, value))
+  const greenSteps = [
+    'rgb(0, 150, 0)', 'rgb(35, 165, 35)', 'rgb(70, 180, 70)',
+    'rgb(105, 195, 105)', 'rgb(140, 210, 140)', 'rgb(175, 225, 175)'
+  ]
+  const redSteps = [
+    'rgb(255, 210, 210)', 'rgb(250, 190, 190)', 'rgb(245, 170, 170)',
+    'rgb(240, 150, 150)', 'rgb(235, 130, 130)', 'rgb(230, 110, 110)',
+    'rgb(220, 80, 80)', 'rgb(210, 50, 50)', 'rgb(195, 20, 20)'
+  ]
+  if (score < 60) {
+    if (score <= 30) return greenSteps[0]
+    return greenSteps[Math.min(greenSteps.length - 1, Math.floor((score - 30) / 5))]
+  }
+  return redSteps[Math.min(redSteps.length - 1, Math.floor((score - 60) / 5))]
+}
 const metricWidth = (value: number | null) => `${value === null ? 0 : Math.min(100, Math.max(0, value))}%`
 const marketValue = (key: string) => { const value = data.value.market[key as keyof MarketMetrics]; return typeof value === 'number' ? value : null }
 const percentText = (value: number | null) => value === null ? '--' : `${(value * 100).toFixed(1)}%`
@@ -211,7 +229,7 @@ onMounted(() => load(true))
     <section class="topbar sentiment-topbar"><div><p class="sentiment-eyebrow">MARKET STATUS</p><h1>A股市场情绪</h1></div><div class="topbar-actions"><span class="market-tip">实时行情</span><button class="refresh-btn" type="button" :disabled="loading || refreshing" @click="refresh"><span aria-hidden="true">↻</span>{{ refreshing ? '读取中' : '刷新行情' }}</button><span class="market-tip" :class="{ 'is-busy': refreshing }">{{ refreshing ? '正在读取 stock-sdk' : data.updatedAt ? `更新于 ${new Date(data.updatedAt).toLocaleTimeString('zh-CN', { hour12: false })}` : '等待数据' }}</span><NuxtLink class="ghost-link" to="/">看板</NuxtLink><NuxtLink class="ghost-link" to="/market/limit">涨跌停</NuxtLink><NuxtLink class="ghost-link" to="/market/data">市场</NuxtLink><button class="ghost-btn" type="button" @click="logout">退出</button></div></section>
     <p v-if="loadError" class="sentiment-alert">{{ loadError }}，保留最近一次成功数据</p>
     <section class="sentiment-card-grid">
-      <article class="sentiment-panel overview-card"><header class="panel-heading"><div><span class="section-label">SENTIMENT OVERVIEW</span><h2>综合情绪与历史评分</h2></div><span class="panel-date">{{ data.tradeDate }}</span></header><div class="overview-main"><div class="sentiment-score-line"><strong>{{ scoreText(data.marketSentiment) }}</strong><span>/ 100</span></div><div class="sentiment-phase"><i></i>{{ phaseLabel }}</div><p>情绪变化 <strong :class="momentumTone">{{ data.momentum === null ? '--' : `${data.momentum >= 0 ? '↑' : '↓'} ${momentumText}` }}</strong></p></div><div v-if="history.length" class="history-chart"><div v-for="item in history.slice().reverse()" :key="`${item.tradeDate}-${item.marketSentiment}`" class="history-bar" :title="`${item.tradeDate} ${scoreText(item.marketSentiment)}`"><i :class="scoreTone(item.marketSentiment)" :style="{ height: `${item.marketSentiment ?? 0}%` }"></i></div></div><p v-else class="empty-state">暂无历史评分</p><div class="history-latest"><span>{{ modeLabel }}</span><span>交易日 {{ data.tradeDate }}</span><span>最高 {{ scoreText(historyHigh) }}</span></div></article>
+      <article class="sentiment-panel overview-card"><header class="panel-heading"><div><span class="section-label">SENTIMENT OVERVIEW</span><h2>综合情绪与历史评分</h2></div><span class="panel-date">{{ data.tradeDate }}</span></header><div class="overview-main"><div class="sentiment-score-line"><strong>{{ scoreText(data.marketSentiment) }}</strong><span>/ 100</span></div><div class="sentiment-phase"><i></i>{{ phaseLabel }}</div><p>情绪变化 <strong :class="momentumTone">{{ data.momentum === null ? '--' : `${data.momentum >= 0 ? '↑' : '↓'} ${momentumText}` }}</strong></p></div><div v-if="history.length" class="history-chart"><div v-for="item in history.slice().reverse()" :key="`${item.tradeDate}-${item.marketSentiment}`" class="history-bar" :title="`${item.tradeDate} ${scoreText(item.marketSentiment)}`"><i :class="scoreTone(item.marketSentiment)" :style="{ height: `${item.marketSentiment ?? 0}%`, backgroundColor: historyBarColor(item.marketSentiment) }"></i></div></div><p v-else class="empty-state">暂无历史评分</p><div class="history-latest"><span>{{ modeLabel }}</span><span>交易日 {{ data.tradeDate }}</span><span>最高 {{ scoreText(historyHigh) }}</span></div></article>
       <article v-for="metric in metricDefinitions" :key="metric.key" class="sentiment-panel metric-detail-card" :class="scoreTone(data[metric.key], metric.key === 'riskScore')"><header class="panel-heading"><div><span class="section-label">{{ metric.key.replace('Score', '').toUpperCase() }}</span><h2>{{ metric.label }}</h2></div><strong class="detail-score">{{ scoreText(data[metric.key]) }}</strong></header><div class="metric-track"><i :style="{ width: metricWidth(data[metric.key]) }"></i></div><p class="metric-note">{{ metric.note }}</p><div class="detail-grid"><div v-for="item in metricDetails(metric.key)" :key="item.label"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div></div></article>
     </section>
   </main>

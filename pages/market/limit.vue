@@ -86,6 +86,7 @@ const formatAmount = (value: number | null | undefined) => {
   return `${(amount / 100000000).toFixed(2)}亿`
 }
 const formatChange = (value: number | null | undefined) => value === null || value === undefined ? '--' : `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
+const changeTone = (value: number | null | undefined) => value === null || value === undefined ? '' : value >= 0 ? 'is-rise' : 'is-fall'
 const isLargeAmount = (value: number | null | undefined) => numberValue(value) > 200000000
 const ztStatisticsText = (value: string | null | undefined) => {
   const matched = value?.trim().match(/^(\d+)\s*\/\s*(\d+)$/)
@@ -122,7 +123,7 @@ const load = async (isRefresh = false) => {
     ])
     const currentStocks = upPool.filter((stock) => stock.code && stock.name)
     const currentCodes = new Set(currentStocks.map((stock) => stock.code))
-    const brokenStocks = previousUpPool
+    let brokenStocks = previousUpPool
       .filter((stock) => stock.code && stock.name && !currentCodes.has(stock.code) && stockBoard(stock) >= 2)
       .map((stock) => ({
         ...stock,
@@ -135,6 +136,18 @@ const load = async (isRefresh = false) => {
         failedCount: null,
         ztStatistics: ''
       }))
+    if (brokenStocks.length) {
+      try {
+        const brokenQuotes = await sdk.quotes.cn(brokenStocks.map((stock) => stock.code))
+        const changeByCode = new Map(brokenQuotes.map((quote) => [quote.code, quote.changePercent]))
+        brokenStocks = brokenStocks.map((stock) => ({
+          ...stock,
+          changePercent: changeByCode.get(stock.code) ?? stock.changePercent
+        }))
+      } catch (cause) {
+        console.warn('[market limit] failed to refresh broken stock changes', cause)
+      }
+    }
     limitUps.value = [...currentStocks, ...brokenStocks]
     limitDowns.value = downPool.filter((stock) => stock.code && stock.name)
     todayLimitUpCount.value = currentStocks.length
@@ -208,7 +221,7 @@ onMounted(() => load())
               <div class="limit-stock-meta">
                 <span>{{ formatTime(stock.firstBoardTime) }}</span>
                 <em class="limit-stock-amount" :class="{ 'is-large': isLargeAmount(viewMode === 'down' ? stock.sealAmount : stock.boardAmount) }">{{ formatAmount(viewMode === 'down' ? stock.sealAmount : stock.boardAmount) }}</em>
-                <em class="limit-stock-change" :class="{ 'is-down': viewMode === 'down' }">{{ formatChange(stock.changePercent) }}</em>
+                <em class="limit-stock-change" :class="[changeTone(stock.changePercent), { 'is-down': viewMode === 'down' }]">{{ formatChange(stock.changePercent) }}</em>
               </div>
               <div class="limit-stock-name-row">
                 <strong class="limit-stock-name" :title="`${stock.name} ${stock.code}`">{{ stock.name }}</strong>

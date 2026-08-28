@@ -1915,6 +1915,8 @@ td input:focus {
 .limit-stock-meta, .limit-stock-foot { display:flex; align-items:center; justify-content:space-between; gap:4px; color:var(--muted); font-size:.6rem; }
 .limit-stock-meta em { flex:0 0 auto; font-style:normal; font-weight:700; white-space:nowrap; }
 .limit-stock-amount, .limit-stock-change { color:var(--muted); }
+.limit-stock.is-broken .limit-stock-change.is-rise { color:#e04444; }
+.limit-stock.is-broken .limit-stock-change.is-fall { color:#07856f; }
 .limit-stock-amount.is-large { color:var(--accent); }
 .limit-stock-signals { display:flex; align-items:center; flex:0 0 auto; gap:2px; margin-left:auto; }
 .limit-stock-badge { display:inline-flex; align-items:center; justify-content:center; min-width:16px; height:16px; padding:0 2px; border-radius:2px; color:#fff; font-size:.58rem; font-style:normal; font-weight:800; line-height:1; }
