@@ -91,8 +91,8 @@ const isLargeAmount = (value: number | null | undefined) => numberValue(value) >
 const ztStatisticsText = (value: string | null | undefined) => {
   const matched = value?.trim().match(/^(\d+)\s*\/\s*(\d+)$/)
   if (!matched) return ''
-  const limitCount = Number(matched[1])
-  const dayCount = Number(matched[2])
+  const limitCount = Number(matched[2])
+  const dayCount = Number(matched[1])
   return limitCount === dayCount ? '' : `${dayCount}天${limitCount}板`
 }
 const shanghaiDate = (value: Date) => {
