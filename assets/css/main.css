@@ -1961,6 +1961,16 @@ td input:focus {
 .overview-main p { margin:14px 0 0; color:var(--muted); font-size:.85rem; }
 .overview-main p strong { margin-left:6px; }
 .metric-detail-card { min-height:245px; }
+.metric-detail-card .detail-score.is-strong, .sentiment-score-line strong.is-strong, .detail-grid strong.is-strong { color:var(--accent); }
+.metric-detail-card .detail-score.is-good, .sentiment-score-line strong.is-good, .detail-grid strong.is-good { color:#e98d7e; }
+.metric-detail-card .detail-score.is-neutral, .sentiment-score-line strong.is-neutral, .detail-grid strong.is-neutral { color:#1f1d1a; }
+.metric-detail-card .detail-score.is-weak, .sentiment-score-line strong.is-weak, .detail-grid strong.is-weak { color:#82b8ae; }
+.metric-detail-card .detail-score.is-poor, .sentiment-score-line strong.is-poor, .detail-grid strong.is-poor { color:var(--accent-2); }
+.metric-detail-card.is-strong .metric-track i { background:var(--accent); }
+.metric-detail-card.is-good .metric-track i { background:#e98d7e; }
+.metric-detail-card.is-neutral .metric-track i { background:#1f1d1a; }
+.metric-detail-card.is-weak .metric-track i { background:#82b8ae; }
+.metric-detail-card.is-poor .metric-track i { background:var(--accent-2); }
 .metric-detail-card .panel-heading { margin-bottom:12px; }
 .metric-detail-card .detail-score { font-size:1.8rem; }
 .metric-note { margin:9px 0 14px; color:var(--muted); font-size:.8rem; }
