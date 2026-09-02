@@ -342,6 +342,17 @@ const closeChart = (type: 'daily' | 'minute') => {
     chartRequestId.value += 1
   }
 }
+const closeCharts = () => {
+  showDailyChart.value = false
+  showMinuteChart.value = false
+  selectedStock.value = null
+  chartRequestId.value += 1
+}
+const onChartPointerdown = (event: PointerEvent) => {
+  if (!showDailyChart.value && !showMinuteChart.value) return
+  const target = event.target
+  if (!(target instanceof Element) || !target.closest('.market-chart-window')) closeCharts()
+}
 const onChartKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Escape' && (showDailyChart.value || showMinuteChart.value)) {
     showDailyChart.value = false
@@ -412,8 +423,12 @@ const load = async (isRefresh = false) => {
 onMounted(() => {
   load()
   window.addEventListener('keydown', onChartKeydown)
+  document.addEventListener('pointerdown', onChartPointerdown)
 })
-onBeforeUnmount(() => window.removeEventListener('keydown', onChartKeydown))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onChartKeydown)
+  document.removeEventListener('pointerdown', onChartPointerdown)
+})
 </script>
 
 <template>
