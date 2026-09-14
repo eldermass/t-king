@@ -192,29 +192,22 @@ const minuteTimeValue = (value: string) => {
   const match = String(value).match(/(\d{2}):(\d{2})(?::\d{2})?$/)
   return match ? Number(match[1]) * 60 + Number(match[2]) : null
 }
-const minuteChartLabels = (rows: MinutePoint[]): ChartLabel[] => {
-  const targets = [570, 630, 690, 840, 900]
-  const used = new Set<number>()
-  return targets.flatMap((target) => {
-    let bestIndex = -1
-    let bestDistance = Infinity
-    rows.forEach((row, index) => {
-      const timeValue = minuteTimeValue(row.time)
-      if (timeValue === null || used.has(index)) return
-      const distance = Math.abs(timeValue - target)
-      if (distance < bestDistance) {
-        bestIndex = index
-        bestDistance = distance
-      }
-    })
-    if (bestIndex < 0 || bestDistance > 5) return []
-    used.add(bestIndex)
-    return [{
-      x: chartPlot.left + (rows.length === 1 ? chartWidth / 2 : (bestIndex / (rows.length - 1)) * chartWidth),
-      label: chartTimeText(rows[bestIndex].time)
-    }]
-  })
-}
+const minuteTradingStart = 9 * 60 + 30
+const minuteMorningEnd = 11 * 60 + 30
+const minuteAfternoonStart = 13 * 60
+const minuteTradingEnd = 15 * 60
+const minuteTradingLength = 4 * 60
+const minuteAxisTicks = [570, 630, 690, 840, 900]
+const isMinuteTradingTime = (value: number) => (value >= minuteTradingStart && value <= minuteMorningEnd) || (value >= minuteAfternoonStart && value <= minuteTradingEnd)
+const minuteTradingOffset = (value: number) => value <= minuteMorningEnd
+  ? value - minuteTradingStart
+  : value >= minuteAfternoonStart
+    ? minuteMorningEnd - minuteTradingStart + value - minuteAfternoonStart
+    : minuteMorningEnd - minuteTradingStart
+const minuteXAt = (value: number) => chartPlot.left + (minuteTradingOffset(value) / minuteTradingLength) * chartWidth
+const minuteChartLabels = (): ChartLabel[] => minuteAxisTicks.map((value) => ({
+  x: minuteXAt(value), label: `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`
+}))
 const volumeBars = (rows: Array<{ volume: number | null; color: string }>, xAt: (index: number) => number, width: number): ChartVolumeBar[] => {
   const maxVolume = Math.max(...rows.map((row) => row.volume ?? 0))
   if (!Number.isFinite(maxVolume) || maxVolume <= 0) return []
@@ -251,21 +244,24 @@ const dailyChart = computed<DailyChartModel | null>(() => {
 })
 
 const minuteChart = computed<MinuteChartModel | null>(() => {
-  const rows = minuteKlines.value.filter((row) => row.close !== null && Number.isFinite(row.close))
+  const rows = minuteKlines.value.filter((row) => {
+    const timeValue = minuteTimeValue(row.time)
+    return row.close !== null && Number.isFinite(row.close) && timeValue !== null && isMinuteTradingTime(timeValue)
+  })
   const previousClose = minutePreviousClose.value
   if (!rows.length || previousClose === null || !Number.isFinite(previousClose) || previousClose <= 0) return null
   const percentOfPreviousClose = (value: number | null) => value === null || !Number.isFinite(value) ? null : ((value - previousClose) / previousClose) * 100
   const changes = rows.flatMap((row) => [percentOfPreviousClose(row.close), percentOfPreviousClose(row.avgPrice)]).filter((value): value is number => value !== null)
   const maxChange = changes.length ? Math.max(...changes.map((value) => Math.abs(value))) : 0
   const maxAbs = maxChange > 0 ? maxChange : 1
-  const xAt = (index: number) => chartPlot.left + (rows.length === 1 ? chartWidth / 2 : (index / (rows.length - 1)) * chartWidth)
+  const xAt = (index: number) => minuteXAt(minuteTimeValue(rows[index].time)!)
   const yAt = (value: number) => chartPlot.top + ((maxAbs - value) / (maxAbs * 2)) * priceHeight
   const lines = [
     { path: chartPath(rows.map((row) => percentOfPreviousClose(row.close)), xAt, yAt), color: '#c64f34' },
     { path: chartPath(rows.map((row) => percentOfPreviousClose(row.avgPrice)), xAt, yAt), color: '#e28a1a' }
   ].filter((line) => line.path)
-  const pointWidth = Math.max(2, Math.min(8, (chartWidth / rows.length) * 0.7))
-  return { lines, volumeBars: volumeBars(rows.map((row, index) => ({ volume: row.volume, color: index === 0 || (row.close ?? 0) >= (rows[index - 1].close ?? 0) ? '#c64f34' : '#1f6f62' })), xAt, pointWidth), grids: chartPercentGrids(maxAbs), labels: minuteChartLabels(rows), min: -maxAbs, max: maxAbs }
+  const pointWidth = Math.max(2, Math.min(8, (chartWidth / minuteTradingLength) * 0.7))
+  return { lines, volumeBars: volumeBars(rows.map((row, index) => ({ volume: row.volume, color: index === 0 || (row.close ?? 0) >= (rows[index - 1].close ?? 0) ? '#c64f34' : '#1f6f62' })), xAt, pointWidth), grids: chartPercentGrids(maxAbs), labels: minuteChartLabels(), min: -maxAbs, max: maxAbs }
 })
 
 const dateDaysAgo = (days: number) => shanghaiDate(new Date(Date.now() - days * 24 * 60 * 60 * 1000)).replace(/-/g, '')
