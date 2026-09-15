@@ -157,7 +157,7 @@ const deriveBudgetFromEntry = (entry: any, fallbackBudget: number) => {
   return fallbackBudget
 }
 
-const normalizeReminderKind = (value: unknown): ReminderKind => value === 'sell' ? 'sell' : 'dip'
+const normalizeReminderKind = (value: unknown): ReminderKind => value === 'exit' ? 'exit' : value === 'sell' ? 'sell' : 'dip'
 
 const normalizeActiveReminder = (input: any): ActiveReminder | null => {
   if (!input || typeof input !== 'object' || typeof input.key !== 'string') {
@@ -173,6 +173,7 @@ const normalizeActiveReminder = (input: any): ActiveReminder | null => {
     triggerId: typeof input.triggerId === 'string' ? input.triggerId : '',
     stockFingerprint: typeof input.stockFingerprint === 'string' ? input.stockFingerprint : '',
     triggerPrice: typeof input.triggerPrice === 'number' ? input.triggerPrice : null,
+    reason: typeof input.reason === 'string' ? input.reason : '',
     lastSentAt: typeof input.lastSentAt === 'string' ? input.lastSentAt : null
   }
 }
@@ -199,6 +200,8 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
         coreBusiness: typeof stock.coreBusiness === 'string' ? stock.coreBusiness : '',
         riseStartPrice: typeof stock.riseStartPrice === 'number' ? stock.riseStartPrice : null,
         pullbackStartPrice: typeof stock.pullbackStartPrice === 'number' ? stock.pullbackStartPrice : null,
+        exitAlertPrice: typeof stock.exitAlertPrice === 'number' ? stock.exitAlertPrice : null,
+        exitAlertReason: typeof stock.exitAlertReason === 'string' ? stock.exitAlertReason : '',
         recommendedDipAlertId: typeof stock.recommendedDipAlertId === 'string' ? stock.recommendedDipAlertId : null,
         profileInitializedCode: typeof stock.profileInitializedCode === 'string' ? stock.profileInitializedCode : null,
         buyEntries: Array.isArray(stock.buyEntries) && stock.buyEntries.length
@@ -238,7 +241,8 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
         redLevel: [0, 1, 2, 3].includes(state.redLevel) ? state.redLevel : 0,
         greenActive: Boolean(state.greenActive),
         triggeredDipAlertIds: Array.isArray(state.triggeredDipAlertIds) ? state.triggeredDipAlertIds.filter((id) => typeof id === 'string') : [],
-        triggeredSellEntryIds: Array.isArray(state.triggeredSellEntryIds) ? state.triggeredSellEntryIds.filter((id) => typeof id === 'string') : []
+        triggeredSellEntryIds: Array.isArray(state.triggeredSellEntryIds) ? state.triggeredSellEntryIds.filter((id) => typeof id === 'string') : [],
+        exitAlertTriggered: Boolean(state.exitAlertTriggered)
       }
     }
   }

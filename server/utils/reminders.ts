@@ -16,6 +16,8 @@ const stockFingerprint = (stock: StockCard) =>
     name: stock.name.trim(),
     code: normalizeCode(stock.code),
     riskWarningEnabled: stock.riskWarningEnabled,
+    exitAlertPrice: stock.exitAlertPrice,
+    exitAlertReason: stock.exitAlertReason.trim(),
     buyEntries: stock.buyEntries.map((entry) => ({
       buyPrice: entry.buyPrice,
       targetRate: entry.targetRate,
@@ -52,6 +54,7 @@ const createReminder = (
     triggerId,
     stockFingerprint: stockFingerprint(stock),
     triggerPrice,
+    reason: kind === 'exit' ? stock.exitAlertReason.trim() : '',
     lastSentAt: null
   }
 }
@@ -88,6 +91,10 @@ const isReminderStillTriggered = (stock: StockCard, quote: QuoteSnapshot | undef
 
     const price = dipPrice(referencePrice(stock), alert.dropRate)
     return price !== null && quote.price <= price
+  }
+
+  if (reminder.kind === 'exit') {
+    return typeof stock.exitAlertPrice === 'number' && stock.exitAlertPrice > 0 && quote.price < stock.exitAlertPrice
   }
 
   const entry = stock.buyEntries.find((item) => item.id === reminder.triggerId)
@@ -131,6 +138,10 @@ export const buildTriggeredReminders = (payload: BoardPayload, quotes: Record<st
 
     for (const entry of evaluation.triggeredSellEntries) {
       reminders.push(createReminder('sell', stock, quote, entry.id, entry.triggerPrice))
+    }
+
+    if (evaluation.triggeredExitAlert) {
+      reminders.push(createReminder('exit', stock, quote, 'exit', evaluation.triggeredExitAlert.triggerPrice))
     }
   }
 
@@ -194,18 +205,34 @@ export const reconcileNotificationSettings = (
 }
 
 export const buildReminderMessage = (reminder: ActiveReminder, quote: QuoteSnapshot | undefined) => {
-  const actionText = reminder.kind === 'dip' ? '补仓提醒' : '卖出提醒'
+  const actionText = reminder.kind === 'dip' ? '补仓提醒' : reminder.kind === 'exit' ? '立即割肉' : '卖出提醒'
   const livePrice = formatPrice(quote?.price ?? null)
   const changeText = formatPercent(quote?.changePercent ?? null)
   const triggerText = formatPrice(reminder.triggerPrice)
 
-  return [
-    `# ${actionText}`,
-    `> ${reminder.stockName} ${reminder.stockCode}`,
-    `当前价：${livePrice} (${changeText})`,
-    `触发价：${triggerText}`,
-    `时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`
-  ].join('\n')
+  if (reminder.kind !== 'exit') {
+    return [
+      `# ${actionText}`,
+      `> ${reminder.stockName} ${reminder.stockCode}`,
+      `当前价：${livePrice} (${changeText})`,
+      `触发价：${triggerText}`,
+      `时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`
+    ].join('\n')
+  }
+
+  const lines = [
+    `# **${actionText}**`,
+    `> **${reminder.stockName} ${reminder.stockCode}**`,
+    `**当前价：${livePrice} (${changeText})**`,
+    `**触发价：${triggerText}**`
+  ]
+
+  if (reminder.kind === 'exit' && reminder.reason.trim()) {
+    lines.push(`**原因：${reminder.reason.trim()}**`)
+  }
+
+  lines.push(`时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`)
+  return lines.join('\n')
 }
 
 export const markReminderSent = (settings: NotificationSettings, reminderKey: string, sentAt: string) => {

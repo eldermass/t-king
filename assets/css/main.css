@@ -716,6 +716,48 @@ td input:focus {
   font-size: 1.02rem;
 }
 
+.stock-card.alert-exit {
+  border-color: rgba(72, 78, 84, 0.72);
+  box-shadow:
+    var(--shadow),
+    0 0 0 2px rgba(72, 78, 84, 0.2),
+    0 0 28px rgba(72, 78, 84, 0.24);
+}
+
+.exit-alert-mask {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(65, 70, 76, 0.58);
+  pointer-events: none;
+}
+
+.exit-alert-banner {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 8px 18px;
+  border: 2px solid #3f454b;
+  border-radius: 999px;
+  background: #555d65;
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(33, 37, 41, 0.28);
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+  animation: exitAlertPulse 1s ease-in-out infinite;
+}
+
+.exit-alert-status {
+  color: #4d555c;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
 .buy-table {
   min-width: 0;
 }
@@ -844,6 +886,16 @@ td input:focus {
 .dip-section .recommend-btn {
   background: rgba(0, 149, 255, 0.14);
   color: #0a84ff;
+}
+
+.exit-alert-section th:first-child,
+.exit-alert-section td:first-child {
+  width: 33.333%;
+}
+
+.exit-alert-section th:last-child,
+.exit-alert-section td:last-child {
+  width: 66.667%;
 }
 
 .dip-section .recommend-btn:hover {
@@ -1307,6 +1359,17 @@ td input:focus {
 
   68% {
     transform: translateY(-2px) scale(1.04);
+  }
+}
+
+@keyframes exitAlertPulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  50% {
+    transform: translate(-50%, -50%) scale(1.05);
   }
 }
 

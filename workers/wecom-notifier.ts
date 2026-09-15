@@ -33,6 +33,8 @@ type StockCard = {
   riskWarningEnabled: boolean
   riseStartPrice: number | null
   pullbackStartPrice: number | null
+  exitAlertPrice: number | null
+  exitAlertReason: string
   recommendedDipAlertId?: string | null
   profileInitializedCode?: string | null
   buyEntries: BuyEntry[]
@@ -41,13 +43,14 @@ type StockCard = {
 
 type ActiveReminder = {
   key: string
-  kind: 'dip' | 'sell'
+  kind: 'dip' | 'sell' | 'exit'
   stockId: string
   stockName: string
   stockCode: string
   triggerId: string
   stockFingerprint: string
   triggerPrice: number | null
+  reason: string
   lastSentAt: string | null
 }
 
@@ -100,6 +103,7 @@ type ReminderSummaryItem = {
   stockName: string
   quote: QuoteSnapshot | undefined
   triggerLabels: string[]
+  reason?: string
 }
 
 type PagesQuoteSnapshot = {
@@ -148,6 +152,8 @@ const stockFingerprint = (stock: StockCard) =>
     name: stock.name.trim(),
     code: normalizeCode(stock.code),
     riskWarningEnabled: stock.riskWarningEnabled,
+    exitAlertPrice: stock.exitAlertPrice,
+    exitAlertReason: stock.exitAlertReason.trim(),
     buyEntries: stock.buyEntries.map((entry) => ({
       id: entry.id,
       buyPrice: entry.buyPrice,
@@ -179,6 +185,8 @@ const normalizeStock = (input: any): StockCard | null => {
     riskWarningEnabled: typeof input.riskWarningEnabled === 'boolean' ? input.riskWarningEnabled : false,
     riseStartPrice: typeof input.riseStartPrice === 'number' ? input.riseStartPrice : null,
     pullbackStartPrice: typeof input.pullbackStartPrice === 'number' ? input.pullbackStartPrice : null,
+    exitAlertPrice: typeof input.exitAlertPrice === 'number' ? input.exitAlertPrice : null,
+    exitAlertReason: typeof input.exitAlertReason === 'string' ? input.exitAlertReason : '',
     recommendedDipAlertId: typeof input.recommendedDipAlertId === 'string' ? input.recommendedDipAlertId : null,
     profileInitializedCode: typeof input.profileInitializedCode === 'string' ? input.profileInitializedCode : null,
     buyEntries: Array.isArray(input.buyEntries)
@@ -212,13 +220,14 @@ const normalizeNotifications = (input: any): NotificationSettings => {
 
       activeReminders[key] = {
         key,
-        kind: reminder.kind === 'sell' ? 'sell' : 'dip',
+        kind: reminder.kind === 'exit' ? 'exit' : reminder.kind === 'sell' ? 'sell' : 'dip',
         stockId: typeof reminder.stockId === 'string' ? reminder.stockId : '',
         stockName: typeof reminder.stockName === 'string' ? reminder.stockName : '',
         stockCode: typeof reminder.stockCode === 'string' ? reminder.stockCode : '',
         triggerId: typeof reminder.triggerId === 'string' ? reminder.triggerId : '',
         stockFingerprint: typeof reminder.stockFingerprint === 'string' ? reminder.stockFingerprint : '',
         triggerPrice: typeof reminder.triggerPrice === 'number' ? reminder.triggerPrice : null,
+        reason: typeof reminder.reason === 'string' ? reminder.reason : '',
         lastSentAt: typeof reminder.lastSentAt === 'string' ? reminder.lastSentAt : null
       }
     }
@@ -439,7 +448,7 @@ const fetchQuotes = async (codes: string[]) => {
 }
 
 const createReminder = (
-  kind: 'dip' | 'sell',
+  kind: 'dip' | 'sell' | 'exit',
   stock: StockCard,
   quote: QuoteSnapshot | undefined,
   triggerId: string,
@@ -454,6 +463,7 @@ const createReminder = (
   triggerId,
   stockFingerprint: stockFingerprint(stock),
   triggerPrice,
+  reason: kind === 'exit' ? stock.exitAlertReason.trim() : '',
   lastSentAt: previous?.lastSentAt ?? null
 })
 
@@ -488,6 +498,11 @@ const reconcileNotifications = (payload: BoardPayload, quotes: Record<string, Qu
     for (const entry of evaluation.triggeredSellEntries) {
       const key = `${stock.id}:sell:${entry.id}`
       next.activeReminders[key] = createReminder('sell', stock, quote, entry.id, entry.triggerPrice, current.activeReminders[key])
+    }
+
+    if (evaluation.triggeredExitAlert) {
+      const key = `${stock.id}:exit:exit`
+      next.activeReminders[key] = createReminder('exit', stock, quote, 'exit', evaluation.triggeredExitAlert.triggerPrice, current.activeReminders[key])
     }
   }
 
@@ -566,12 +581,12 @@ const formatTriggerLabels = (labels: string[]) => {
 }
 
 const buildBatchMessageTitle = (reminders: ActiveReminder[]) => {
-  const titleMap = new Map<string, Set<'买入' | '卖出'>>()
+  const titleMap = new Map<string, Set<'买入' | '卖出' | '立即割肉'>>()
 
   for (const reminder of reminders) {
     const stockName = reminder.stockName.trim() || normalizeCode(reminder.stockCode)
-    const action = reminder.kind === 'dip' ? '买入' : '卖出'
-    const actions = titleMap.get(stockName) ?? new Set<'买入' | '卖出'>()
+    const action = reminder.kind === 'dip' ? '买入' : reminder.kind === 'exit' ? '立即割肉' : '卖出'
+    const actions = titleMap.get(stockName) ?? new Set<'买入' | '卖出' | '立即割肉'>()
 
     actions.add(action)
     titleMap.set(stockName, actions)
@@ -593,10 +608,11 @@ const buildBatchMessageBody = (
 ) => {
   const buyMap = new Map<string, ReminderSummaryItem>()
   const sellMap = new Map<string, ReminderSummaryItem>()
+  const exitMap = new Map<string, ReminderSummaryItem>()
 
   for (const reminder of reminders) {
     const quote = quotes[normalizeCode(reminder.stockCode)]
-    const targetMap = reminder.kind === 'dip' ? buyMap : sellMap
+    const targetMap = reminder.kind === 'dip' ? buyMap : reminder.kind === 'exit' ? exitMap : sellMap
     const current = targetMap.get(reminder.stockId)
     let percent: number | null = null
 
@@ -608,7 +624,7 @@ const buildBatchMessageBody = (
 
       if (reminder.kind === 'dip') {
         percent = snapshot.dipAlerts?.find((alert) => alert.id === reminder.triggerId)?.dropRate ?? null
-      } else {
+      } else if (reminder.kind === 'sell') {
         percent = snapshot.buyEntries?.find((entry) => entry.id === reminder.triggerId)?.targetRate ?? null
       }
     } catch {
@@ -619,13 +635,17 @@ const buildBatchMessageBody = (
 
     if (current) {
       current.triggerLabels.push(triggerLabel)
+      if (reminder.kind === 'exit' && !current.reason) {
+        current.reason = reminder.reason
+      }
       continue
     }
 
     targetMap.set(reminder.stockId, {
       stockName: reminder.stockName,
       quote,
-      triggerLabels: [triggerLabel]
+      triggerLabels: [triggerLabel],
+      reason: reminder.kind === 'exit' ? reminder.reason : undefined
     })
   }
 
@@ -650,6 +670,17 @@ const buildBatchMessageBody = (
     for (const item of [...sellMap.values()].sort((left, right) => left.stockName.localeCompare(right.stockName, 'zh-CN'))) {
       body.push(
         `- ${item.stockName}：现价 ${formatPrice(item.quote?.price ?? null)}（${formatPercent(item.quote?.changePercent ?? null)}），参考卖出 ${formatTriggerLabels(item.triggerLabels)}`
+      )
+    }
+  }
+
+  if (exitMap.size) {
+    body.push('', '## **立即割肉**')
+
+    for (const item of [...exitMap.values()].sort((left, right) => left.stockName.localeCompare(right.stockName, 'zh-CN'))) {
+      const reasonText = item.reason?.trim() ? `，**原因：${item.reason.trim()}**` : ''
+      body.push(
+        `- **${item.stockName}**：**现价 ${formatPrice(item.quote?.price ?? null)}（${formatPercent(item.quote?.changePercent ?? null)}），跌破 ${formatTriggerLabels(item.triggerLabels)}${reasonText}**`
       )
     }
   }

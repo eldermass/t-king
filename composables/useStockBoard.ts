@@ -25,6 +25,8 @@ export type StockCard = {
   riskWarningEnabled: boolean
   riseStartPrice: number | null
   pullbackStartPrice: number | null
+  exitAlertPrice: number | null
+  exitAlertReason: string
   recommendedDipAlertId?: string | null
   profileInitializedCode?: string | null
   buyEntries: BuyEntry[]
@@ -62,9 +64,10 @@ export type AlertState = {
   greenActive: boolean
   triggeredDipAlertIds: string[]
   triggeredSellEntryIds: string[]
+  exitAlertTriggered: boolean
 }
 
-export type ReminderKind = 'dip' | 'sell'
+export type ReminderKind = 'dip' | 'sell' | 'exit'
 
 export type ActiveReminder = {
   key: string
@@ -75,6 +78,7 @@ export type ActiveReminder = {
   triggerId: string
   stockFingerprint: string
   triggerPrice: number | null
+  reason: string
   lastSentAt: string | null
 }
 
@@ -243,6 +247,8 @@ const defaultStocks = (): StockCard[] => [
     riskWarningEnabled: false,
     riseStartPrice: null,
     pullbackStartPrice: null,
+    exitAlertPrice: null,
+    exitAlertReason: '',
     recommendedDipAlertId: null,
     profileInitializedCode: '300088',
     buyEntries: [createBuyEntry(7.85, null, 3, null, INITIAL_POSITION_BUDGET)],
@@ -260,6 +266,8 @@ const defaultStocks = (): StockCard[] => [
     riskWarningEnabled: false,
     riseStartPrice: null,
     pullbackStartPrice: null,
+    exitAlertPrice: null,
+    exitAlertReason: '',
     recommendedDipAlertId: null,
     profileInitializedCode: '300058',
     buyEntries: [createBuyEntry(17, null, 3, null, INITIAL_POSITION_BUDGET), createBuyEntry(16.1, null, 3, null, ADD_POSITION_BUDGET)],
@@ -277,6 +285,8 @@ const defaultStocks = (): StockCard[] => [
     riskWarningEnabled: false,
     riseStartPrice: null,
     pullbackStartPrice: null,
+    exitAlertPrice: null,
+    exitAlertReason: '',
     recommendedDipAlertId: null,
     profileInitializedCode: '301171',
     buyEntries: [
@@ -661,6 +671,8 @@ export const useStockBoard = () => {
       name: stock.name.trim(),
       code: normalizeCode(stock.code),
       riskWarningEnabled: stock.riskWarningEnabled,
+      exitAlertPrice: stock.exitAlertPrice,
+      exitAlertReason: stock.exitAlertReason.trim(),
       buyEntries: stock.buyEntries.map((entry) => ({
         buyPrice: entry.buyPrice,
         targetRate: entry.targetRate,
@@ -679,7 +691,8 @@ export const useStockBoard = () => {
     redLevel: 0,
     greenActive: false,
     triggeredDipAlertIds: [],
-    triggeredSellEntryIds: []
+    triggeredSellEntryIds: [],
+    exitAlertTriggered: false
   })
 
   const syncAlertStates = () => {
@@ -696,7 +709,8 @@ export const useStockBoard = () => {
             redLevel: 0,
             greenActive: false,
             triggeredDipAlertIds: [],
-            triggeredSellEntryIds: []
+            triggeredSellEntryIds: [],
+            exitAlertTriggered: false
           }
     }
 
@@ -852,7 +866,8 @@ export const useStockBoard = () => {
           redLevel: 0,
           greenActive: false,
           triggeredDipAlertIds: [],
-          triggeredSellEntryIds: []
+          triggeredSellEntryIds: [],
+          exitAlertTriggered: false
         }
 
         nextStates[stock.id] = updated
@@ -862,7 +877,8 @@ export const useStockBoard = () => {
           updated.greenActive !== current.greenActive ||
           updated.fingerprint !== current.fingerprint ||
           updated.triggeredDipAlertIds.join('|') !== current.triggeredDipAlertIds.join('|') ||
-          updated.triggeredSellEntryIds.join('|') !== current.triggeredSellEntryIds.join('|')
+          updated.triggeredSellEntryIds.join('|') !== current.triggeredSellEntryIds.join('|') ||
+          updated.exitAlertTriggered !== current.exitAlertTriggered
         ) {
           changed = true
         }
@@ -877,7 +893,8 @@ export const useStockBoard = () => {
         redLevel: evaluation.redLevel,
         greenActive: evaluation.greenActive,
         triggeredDipAlertIds: evaluation.triggeredDipAlerts.map((alert) => alert.id),
-        triggeredSellEntryIds: evaluation.triggeredSellEntries.map((entry) => entry.id)
+        triggeredSellEntryIds: evaluation.triggeredSellEntries.map((entry) => entry.id),
+        exitAlertTriggered: evaluation.triggeredExitAlert !== null
       }
 
       nextStates[stock.id] = updated
@@ -887,7 +904,8 @@ export const useStockBoard = () => {
         updated.greenActive !== current.greenActive ||
         updated.fingerprint !== current.fingerprint ||
         updated.triggeredDipAlertIds.join('|') !== current.triggeredDipAlertIds.join('|') ||
-        updated.triggeredSellEntryIds.join('|') !== current.triggeredSellEntryIds.join('|')
+        updated.triggeredSellEntryIds.join('|') !== current.triggeredSellEntryIds.join('|') ||
+        updated.exitAlertTriggered !== current.exitAlertTriggered
       ) {
         changed = true
       }
@@ -903,6 +921,10 @@ export const useStockBoard = () => {
 
     if (!state) {
       return ''
+    }
+
+    if (state.exitAlertTriggered) {
+      return 'alert-exit'
     }
 
     if (state.redLevel === 3) {
@@ -923,6 +945,8 @@ export const useStockBoard = () => {
 
     return ''
   }
+
+  const isExitAlertTriggered = (stockId: string) => alertStates.value[stockId]?.exitAlertTriggered ?? false
 
   const dipAlertLevel = (dropRate: number) => {
     if (dropRate <= -7) {
@@ -1224,6 +1248,15 @@ export const useStockBoard = () => {
       : null
   }
 
+  const handleExitAlertPriceInput = (stock: StockCard, rawValue: string) => {
+    const trimmedValue = rawValue.trim()
+    const nextPrice = Number(trimmedValue)
+
+    stock.exitAlertPrice = trimmedValue && Number.isFinite(nextPrice) && nextPrice > 0
+      ? roundMoneyPrice(nextPrice)
+      : null
+  }
+
   const handleDipAlertPriceInput = (stock: StockCard, alert: DipAlert, rawValue: string) => {
     const basePrice = referencePrice(stock)
 
@@ -1276,6 +1309,8 @@ export const useStockBoard = () => {
       riskWarningEnabled: false,
       riseStartPrice: null,
       pullbackStartPrice: null,
+      exitAlertPrice: null,
+      exitAlertReason: '',
       primaryTheme: '',
       secondaryTheme: '',
       coreBusiness: '',
@@ -1483,6 +1518,7 @@ export const useStockBoard = () => {
     themeList,
     quoteLabel,
     cardAlertClass,
+    isExitAlertTriggered,
     isSellTriggered,
     dipAlertClass,
     recommendedAddClass,
@@ -1493,6 +1529,7 @@ export const useStockBoard = () => {
     handleBuyPriceInput,
     handleLotsInput,
     handleMarkerPriceInput,
+    handleExitAlertPriceInput,
     handleDipAlertPriceInput,
     reorderStocks,
     moveStockByOffset,

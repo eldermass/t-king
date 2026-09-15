@@ -63,6 +63,7 @@ const {
   profileText,
   quoteLabel,
   cardAlertClass,
+  isExitAlertTriggered,
   isSellTriggered,
   dipAlertClass,
   recommendedAddClass,
@@ -71,6 +72,7 @@ const {
   handleBuyPriceInput,
   handleLotsInput,
   handleMarkerPriceInput,
+  handleExitAlertPriceInput,
   handleDipAlertPriceInput,
   removeStock,
   addBuyEntry,
@@ -124,6 +126,10 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
     :data-stock-id="stock.id"
     :style="customStyle"
   >
+    <div v-if="isExitAlertTriggered(stock.id)" class="exit-alert-banner">
+      立即割肉
+    </div>
+    <div v-if="isExitAlertTriggered(stock.id)" class="exit-alert-mask" aria-hidden="true"></div>
     <div v-if="hasCycleAdvisory(stock)" class="cycle-advisory">
       {{ cycleAdvisoryText(stock) }}
     </div>
@@ -425,6 +431,63 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
       </div>
     </section>
 
+    <section class="table-section info-section risk-warning-section">
+      <div class="section-head risk-warning-head">
+        <h2>风险警告</h2>
+        <div class="risk-warning-toggle">
+          <input v-model="stock.riskWarningEnabled" type="checkbox" />
+          <span>开启提醒</span>
+        </div>
+      </div>
+      <textarea
+        v-model="stock.riskWarning"
+        class="info-textarea risk-warning-textarea"
+        rows="3"
+        placeholder="输入需要在 worker 调用时推送到 PushDeer 的风险提醒"
+      />
+    </section>
+
+    <section class="table-section dip-section exit-alert-section">
+      <div class="section-head">
+        <h2>离场提醒</h2>
+        <span v-if="isExitAlertTriggered(stock.id)" class="exit-alert-status">已跌破</span>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>离场价</th>
+              <th>离场原因</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <input
+                  :value="stock.exitAlertPrice ?? ''"
+                  class="warn-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="跌破此价位触发"
+                  @input="handleExitAlertPriceInput(stock, (($event.target as HTMLInputElement)?.value ?? ''))"
+                />
+              </td>
+              <td>
+                <input
+                  v-model="stock.exitAlertReason"
+                  class="warn-input"
+                  type="text"
+                  placeholder="填写离场原因"
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <section class="table-section info-section">
       <div class="section-head">
         <h2>重点信息</h2>
@@ -469,21 +532,6 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
           />
         </label>
 
-        <label class="info-field info-field-wide risk-warning-field">
-          <div class="risk-warning-head">
-            <span>风险警告</span>
-            <div class="risk-warning-toggle">
-              <input v-model="stock.riskWarningEnabled" type="checkbox" />
-              <span>开启提醒</span>
-            </div>
-          </div>
-          <textarea
-            v-model="stock.riskWarning"
-            class="info-textarea risk-warning-textarea"
-            rows="3"
-            placeholder="输入需要在 worker 调用时推送到 PushDeer 的风险提醒"
-          />
-        </label>
       </div>
     </section>
 

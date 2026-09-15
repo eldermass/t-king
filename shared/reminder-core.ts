@@ -1,4 +1,4 @@
-export type ReminderKind = 'dip' | 'sell'
+export type ReminderKind = 'dip' | 'sell' | 'exit'
 
 export type BuyEntryLike = {
   id: string
@@ -17,6 +17,8 @@ export type StockLike = {
   name: string
   code: string
   riskWarningEnabled?: boolean
+  exitAlertPrice?: number | null
+  exitAlertReason?: string
   buyEntries: BuyEntryLike[]
   dipAlerts: DipAlertLike[]
 }
@@ -32,11 +34,17 @@ export type TriggeredSellEntry = {
   triggerPrice: number
 }
 
+export type TriggeredExitAlert = {
+  triggerPrice: number
+  reason: string
+}
+
 export type StockTriggerEvaluation = {
   redLevel: 0 | 1 | 2 | 3
   greenActive: boolean
   triggeredDipAlerts: TriggeredDipAlert[]
   triggeredSellEntries: TriggeredSellEntry[]
+  triggeredExitAlert: TriggeredExitAlert | null
 }
 
 const roundPrice = (value: number) => Math.round(value * 10000) / 10000
@@ -90,7 +98,8 @@ export const evaluateStockTriggers = (stock: StockLike, livePrice: number | null
       redLevel: 0,
       greenActive: false,
       triggeredDipAlerts: [],
-      triggeredSellEntries: []
+      triggeredSellEntries: [],
+      triggeredExitAlert: null
     }
   }
 
@@ -100,6 +109,12 @@ export const evaluateStockTriggers = (stock: StockLike, livePrice: number | null
 
   const triggeredDipAlerts: TriggeredDipAlert[] = []
   const triggeredSellEntries: TriggeredSellEntry[] = []
+  const triggeredExitAlert = typeof stock.exitAlertPrice === 'number' && stock.exitAlertPrice > 0 && livePrice < stock.exitAlertPrice
+    ? {
+        triggerPrice: stock.exitAlertPrice,
+        reason: stock.exitAlertReason?.trim() ?? ''
+      }
+    : null
 
   for (const alert of stock.dipAlerts) {
     const triggerPrice = dipPrice(basePrice, alert.dropRate)
@@ -148,6 +163,7 @@ export const evaluateStockTriggers = (stock: StockLike, livePrice: number | null
     redLevel,
     greenActive: sellFloor !== null && livePrice >= sellFloor,
     triggeredDipAlerts,
-    triggeredSellEntries
+    triggeredSellEntries,
+    triggeredExitAlert
   }
 }
