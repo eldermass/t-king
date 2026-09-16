@@ -174,10 +174,7 @@ onBeforeUnmount(() => {
         <span class="market-tip" :class="{ 'is-busy': boardLoading || saveStatus === 'saving' }">
           {{ cloudStatusText }}
         </span>
-        <NuxtLink class="ghost-link" to="/market/sentiment">情绪</NuxtLink>
-        <NuxtLink class="ghost-link" to="/market/limit">涨跌停</NuxtLink>
-        <NuxtLink class="ghost-link" to="/h5">H5</NuxtLink>
-        <NuxtLink class="ghost-link" to="/ruler">刻度</NuxtLink>
+        <PageSwitcher />
         <PushDeerSettingsButton />
         <button class="primary-btn" type="button" @click="addStock">
           新增股票

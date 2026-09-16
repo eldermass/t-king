@@ -195,7 +195,7 @@ onMounted(() => {
         </span>
 
         <div class="h5-toolbar-side h5-toolbar-actions">
-          <NuxtLink class="ghost-link" to="/ruler">刻度</NuxtLink>
+          <PageSwitcher />
           <PushDeerSettingsButton compact />
           <button class="primary-btn" type="button" @click="handleAddStock">新增</button>
           <button class="ghost-btn" type="button" @click="logout">退出</button>

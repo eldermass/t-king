@@ -440,9 +440,7 @@ onBeforeUnmount(() => {
           <span aria-hidden="true">↻</span>{{ refreshing ? '更新中' : '刷新行情' }}
         </button>
         <span class="market-tip" :class="{ 'is-busy': refreshing }">{{ refreshing ? '正在读取 stock-sdk' : updatedAt ? `更新于 ${new Date(updatedAt).toLocaleTimeString('zh-CN', { hour12: false })}` : '等待数据' }}</span>
-        <NuxtLink class="ghost-link" to="/market/sentiment">情绪</NuxtLink>
-        <NuxtLink class="ghost-link" to="/market/data">市场数据</NuxtLink>
-        <NuxtLink class="ghost-link" to="/">看板</NuxtLink>
+        <PageSwitcher />
         <button class="ghost-btn" type="button" @click="logout">退出</button>
       </div>
     </section>

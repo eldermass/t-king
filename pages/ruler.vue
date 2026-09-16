@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { stockBoardKey, type BuyEntry, type StockCard } from '~/composables/useStockBoard'
 type RulerPoint = {
   id: string
@@ -214,8 +214,7 @@ const logout = async () => {
         <span class="market-tip" :class="{ 'is-busy': boardLoading || saveStatus === 'saving' || quoteLoading }">
           {{ cloudStatusText }}
         </span>
-        <NuxtLink class="ghost-link" to="/">看板</NuxtLink>
-        <NuxtLink class="ghost-link" to="/h5">H5</NuxtLink>
+        <PageSwitcher />
         <button class="ghost-btn" type="button" @click="logout">退出</button>
       </div>
     </section>

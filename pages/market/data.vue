@@ -68,7 +68,7 @@ onMounted(load)
 
 <template>
   <main class="page-shell market-data-page">
-    <section class="topbar market-data-topbar"><div><p class="sentiment-eyebrow">MARKET DATA</p><h1>市场数据</h1></div><div class="topbar-actions"><NuxtLink class="ghost-link" to="/market/sentiment">情绪</NuxtLink><NuxtLink class="ghost-link" to="/market/limit">涨跌停</NuxtLink><NuxtLink class="ghost-link" to="/">看板</NuxtLink><button class="ghost-btn" type="button" @click="$fetch('/api/auth/logout', { method: 'POST' }).then(() => navigateTo('/login'))">退出</button></div></section>
+    <section class="topbar market-data-topbar"><div><p class="sentiment-eyebrow">MARKET DATA</p><h1>市场数据</h1></div><div class="topbar-actions"><PageSwitcher /><button class="ghost-btn" type="button" @click="$fetch('/api/auth/logout', { method: 'POST' }).then(() => navigateTo('/login'))">退出</button></div></section>
     <p v-if="error" class="sentiment-alert">{{ error }}</p>
     <section class="market-data-panel">
       <div v-if="loading" class="market-data-empty">正在读取市场数据...</div>
