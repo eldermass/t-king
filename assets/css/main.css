@@ -748,6 +748,10 @@ td input:focus {
   font-size: 1.02rem;
 }
 
+.accent-text.sell-text-negative {
+  color: var(--accent-2);
+}
+
 .stock-card.alert-exit {
   border-color: rgba(72, 78, 84, 0.72);
   box-shadow:

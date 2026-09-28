@@ -264,7 +264,13 @@ const onMoveNext = () => emit('moveNext', props.stock.id)
                   <span>%</span>
                 </div>
               </td>
-              <td class="accent-text sell-text" :class="{ 'number-alert-green': isSellTriggered(stock.id, entry.id) }">
+              <td
+                class="accent-text sell-text"
+                :class="{
+                  'sell-text-negative': entry.targetRate < 0,
+                  'number-alert-green': isSellTriggered(stock.id, entry.id)
+                }"
+              >
                 {{ formatSellPrice(plannedSellPrice(entry)) }}
               </td>
               <td>

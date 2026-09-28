@@ -516,11 +516,7 @@ export const useStockBoard = () => {
     }
 
     if (entry.lots < 0) {
-      const sellPrice = plannedSellPrice(entry)
-
-      return sellPrice === null
-        ? null
-        : (sellPrice - livePrice) * Math.abs(entry.lots) * 100
+      return (entry.buyPrice - livePrice) * Math.abs(entry.lots) * 100
     }
 
     return (livePrice - entry.buyPrice) * entry.lots * 100
