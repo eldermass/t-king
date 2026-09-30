@@ -376,7 +376,9 @@ const load = async (isRefresh = false) => {
     const currentStocks = upPool.filter((stock) => stock.code && stock.name)
     const currentCodes = new Set(currentStocks.map((stock) => stock.code))
     let brokenStocks = previousUpPool
-      .filter((stock) => stock.code && stock.name && !currentCodes.has(stock.code) && stockBoard(stock) >= 2)
+      // Include stocks that failed to advance from yesterday's first board to
+      // today's second board, alongside the existing 3+ board breakouts.
+      .filter((stock) => stock.code && stock.name && !currentCodes.has(stock.code) && stockBoard(stock) >= 1)
       .map((stock) => ({
         ...stock,
         continuousBoardCount: stockBoard(stock) + 1,

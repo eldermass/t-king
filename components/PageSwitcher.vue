@@ -3,11 +3,11 @@ const route = useRoute()
 
 const pages = [
   { to: '/', label: '看板' },
+  { to: '/ruler', label: '刻度' },
   { to: '/market/sentiment', label: '情绪' },
   { to: '/market/limit', label: '涨跌停' },
   { to: '/market/data', label: '市场数据' },
-  { to: '/h5', label: 'H5' },
-  { to: '/ruler', label: '刻度' }
+  { to: '/h5', label: 'H5' }
 ]
 </script>
 
