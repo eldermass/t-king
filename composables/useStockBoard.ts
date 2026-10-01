@@ -8,10 +8,21 @@ export type BuyEntry = {
   lotsManual: boolean
 }
 
+export type TradeRecord = {
+  id: string
+  entryId: string | null
+  type: 'buy' | 'sell'
+  price: number
+  lots: number
+  tradeDate: string
+}
+
 export type DipAlert = {
   id: string
   dropRate: number
 }
+
+import type { StockScore } from '~/shared/stock-score'
 
 export type StockCard = {
   id: string
@@ -30,7 +41,9 @@ export type StockCard = {
   recommendedDipAlertId?: string | null
   profileInitializedCode?: string | null
   buyEntries: BuyEntry[]
+  tradeRecords: TradeRecord[]
   dipAlerts: DipAlert[]
+  score?: StockScore
 }
 
 export type QuoteState = {
@@ -223,6 +236,20 @@ const createBuyEntry = (
   lotsManual
 })
 
+const createTradeRecord = (
+  type: TradeRecord['type'],
+  price: number,
+  lots: number,
+  entryId: string | null = null
+): TradeRecord => ({
+  id: createId(),
+  entryId,
+  type,
+  price,
+  lots,
+  tradeDate: currentTradeDate()
+})
+
 const createDipAlert = (dropRate = -3): DipAlert => ({
   id: createId(),
   dropRate
@@ -252,6 +279,7 @@ const defaultStocks = (): StockCard[] => [
     recommendedDipAlertId: null,
     profileInitializedCode: '300088',
     buyEntries: [createBuyEntry(7.85, null, 3, null, INITIAL_POSITION_BUDGET)],
+    tradeRecords: [],
     dipAlerts: defaultDipAlerts()
   },
   {
@@ -271,6 +299,7 @@ const defaultStocks = (): StockCard[] => [
     recommendedDipAlertId: null,
     profileInitializedCode: '300058',
     buyEntries: [createBuyEntry(17, null, 3, null, INITIAL_POSITION_BUDGET), createBuyEntry(16.1, null, 3, null, ADD_POSITION_BUDGET)],
+    tradeRecords: [],
     dipAlerts: defaultDipAlerts()
   },
   {
@@ -295,6 +324,7 @@ const defaultStocks = (): StockCard[] => [
       createBuyEntry(39.8, null, 3, null, ADD_POSITION_BUDGET),
       createBuyEntry(38.4, null, 3, null, ADD_POSITION_BUDGET)
     ],
+    tradeRecords: [],
     dipAlerts: defaultDipAlerts()
   }
 ]
@@ -1312,7 +1342,8 @@ export const useStockBoard = () => {
       coreBusiness: '',
       recommendedDipAlertId: null,
       profileInitializedCode: null,
-      buyEntries: [createBuyEntry(null, null, 3, null, INITIAL_POSITION_BUDGET)],
+      buyEntries: [],
+      tradeRecords: [],
       dipAlerts: defaultDipAlerts()
     })
   }
@@ -1328,12 +1359,34 @@ export const useStockBoard = () => {
       return
     }
 
+    const stock = stocks.value.find((item) => item.id === stockId)
+
+    if (!stock) {
+      return
+    }
+
     stocks.value = stocks.value.filter((stock) => stock.id !== stockId)
+    delete alertStates.value[stockId]
+    delete lastCodeSnapshot.value[stockId]
+
+    const code = normalizeCode(stock.code)
+
+    if (code && !stocks.value.some((item) => normalizeCode(item.code) === code)) {
+      delete quotes.value[code]
+      delete profileStatuses.value[code]
+    }
+
+    for (const [key, reminder] of Object.entries(notificationSettings.value.activeReminders)) {
+      if (reminder.stockId === stockId) {
+        delete notificationSettings.value.activeReminders[key]
+      }
+    }
   }
 
-  const addBuyEntry = (stock: StockCard) => {
-    stock.buyEntries.push(createBuyEntry(null, null, 4, null, ADD_POSITION_BUDGET))
-    shiftDipAlerts(stock, -DEFAULT_DIP_INTERVAL)
+  const addBuyEntry = (stock: StockCard, price: number, targetRate: number, lots: number) => {
+    const entry = createBuyEntry(roundMoneyPrice(price), currentTradeDate(), targetRate, lots, 0, true)
+    stock.buyEntries.push(entry)
+    stock.tradeRecords.push(createTradeRecord(lots > 0 ? 'buy' : 'sell', entry.buyPrice as number, Math.abs(lots), entry.id))
   }
 
   const removeBuyEntry = (stock: StockCard, entryId: string) => {
@@ -1347,6 +1400,50 @@ export const useStockBoard = () => {
 
     stock.buyEntries = stock.buyEntries.filter((entry) => entry.id !== entryId)
     shiftDipAlerts(stock, DEFAULT_DIP_INTERVAL)
+  }
+
+  const offsetBuyEntry = (stock: StockCard, entryId: string, price: number, lots: number) => {
+    const entry = stock.buyEntries.find((item) => item.id === entryId)
+
+    if (!entry || entry.lots === null || entry.lots === 0 || !Number.isFinite(price) || price <= 0 || !Number.isInteger(lots) || lots <= 0 || lots > Math.abs(entry.lots)) {
+      return false
+    }
+
+    const type: TradeRecord['type'] = entry.lots > 0 ? 'sell' : 'buy'
+    const nextLots = entry.lots > 0 ? entry.lots - lots : entry.lots + lots
+    stock.tradeRecords.push(createTradeRecord(type, roundMoneyPrice(price), lots, entry.id))
+
+    if (nextLots === 0) {
+      stock.buyEntries = stock.buyEntries.filter((item) => item.id !== entry.id)
+    } else {
+      entry.lots = nextLots
+    }
+
+    return true
+  }
+
+  const closeStock = (stock: StockCard, price: number) => {
+    if (!Number.isFinite(price) || price <= 0 || !stock.buyEntries.length) {
+      return false
+    }
+
+    const closePrice = roundMoneyPrice(price)
+
+    for (const entry of stock.buyEntries) {
+      if (entry.lots === null || entry.lots === 0) {
+        continue
+      }
+
+      stock.tradeRecords.push(createTradeRecord(entry.lots > 0 ? 'sell' : 'buy', closePrice, Math.abs(entry.lots), entry.id))
+    }
+
+    stock.buyEntries = []
+    return true
+  }
+
+  const discardBuyEntry = (stock: StockCard, entryId: string) => {
+    stock.buyEntries = stock.buyEntries.filter((entry) => entry.id !== entryId)
+    stock.tradeRecords = stock.tradeRecords.filter((record) => record.entryId !== entryId)
   }
 
   const addDipAlert = (stock: StockCard) => {
@@ -1523,7 +1620,6 @@ export const useStockBoard = () => {
     refreshQuotes,
     refreshProfiles,
     handleBuyPriceInput,
-    handleLotsInput,
     handleMarkerPriceInput,
     handleExitAlertPriceInput,
     handleDipAlertPriceInput,
@@ -1532,7 +1628,9 @@ export const useStockBoard = () => {
     addStock,
     removeStock,
     addBuyEntry,
-    removeBuyEntry,
+    offsetBuyEntry,
+    closeStock,
+    discardBuyEntry,
     addDipAlert,
     removeDipAlert
   }

@@ -1,4 +1,5 @@
-import type { BuyEntry, DipAlert, StockCard, AlertState, NotificationSettings, ActiveReminder, ReminderKind } from '~/composables/useStockBoard'
+import type { BuyEntry, DipAlert, StockCard, AlertState, NotificationSettings, ActiveReminder, ReminderKind, TradeRecord } from '~/composables/useStockBoard'
+import { emptyStockScore } from '~/shared/stock-score'
 
 export type BoardPayload = {
   stocks: StockCard[]
@@ -93,6 +94,7 @@ export const defaultBoardPayload = (): BoardPayload => ({
       pullbackStartPrice: null,
       profileInitializedCode: '300088',
       buyEntries: [createBuyEntry(7.85, null, 3, null, INITIAL_POSITION_BUDGET)],
+      tradeRecords: [],
       dipAlerts: defaultDipAlerts()
     },
     {
@@ -110,6 +112,7 @@ export const defaultBoardPayload = (): BoardPayload => ({
       pullbackStartPrice: null,
       profileInitializedCode: '300058',
       buyEntries: [createBuyEntry(17, null, 3, null, INITIAL_POSITION_BUDGET), createBuyEntry(16.1, null, 3, null, ADD_POSITION_BUDGET)],
+      tradeRecords: [],
       dipAlerts: defaultDipAlerts()
     },
     {
@@ -132,6 +135,7 @@ export const defaultBoardPayload = (): BoardPayload => ({
         createBuyEntry(39.8, null, 3, null, ADD_POSITION_BUDGET),
         createBuyEntry(38.4, null, 3, null, ADD_POSITION_BUDGET)
       ],
+      tradeRecords: [],
       dipAlerts: defaultDipAlerts()
     }
   ],
@@ -158,6 +162,23 @@ const deriveBudgetFromEntry = (entry: any, fallbackBudget: number) => {
 }
 
 const normalizeReminderKind = (value: unknown): ReminderKind => value === 'exit' ? 'exit' : value === 'sell' ? 'sell' : 'dip'
+
+const normalizeScoreSelections = (value: unknown) => {
+  if (!value || typeof value !== 'object') return {}
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([, item]) => typeof item === 'string'))
+}
+
+const normalizeStockScore = (value: unknown) => {
+  const score = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  const fallback = emptyStockScore()
+  return {
+    quality: typeof score.quality === 'number' && Number.isFinite(score.quality) ? score.quality : fallback.quality,
+    form: typeof score.form === 'number' && Number.isFinite(score.form) ? score.form : fallback.form,
+    qualitySelections: normalizeScoreSelections(score.qualitySelections),
+    formSelections: normalizeScoreSelections(score.formSelections),
+    updatedAt: typeof score.updatedAt === 'string' ? score.updatedAt : null
+  }
+}
 
 const normalizeActiveReminder = (input: any): ActiveReminder | null => {
   if (!input || typeof input !== 'object' || typeof input.key !== 'string') {
@@ -204,7 +225,7 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
         exitAlertReason: typeof stock.exitAlertReason === 'string' ? stock.exitAlertReason : '',
         recommendedDipAlertId: typeof stock.recommendedDipAlertId === 'string' ? stock.recommendedDipAlertId : null,
         profileInitializedCode: typeof stock.profileInitializedCode === 'string' ? stock.profileInitializedCode : null,
-        buyEntries: Array.isArray(stock.buyEntries) && stock.buyEntries.length
+        buyEntries: Array.isArray(stock.buyEntries)
           ? stock.buyEntries.map((entry: any) => ({
               id: typeof entry.id === 'string' ? entry.id : createId(),
               buyPrice: typeof entry.buyPrice === 'number' ? entry.buyPrice : null,
@@ -219,12 +240,25 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
                 : typeof entry.lots === 'number'
             }))
           : [createBuyEntry()],
+        tradeRecords: Array.isArray(stock.tradeRecords)
+          ? stock.tradeRecords
+            .filter((record: any) => record && typeof record === 'object' && typeof record.price === 'number' && Number.isFinite(record.price) && record.price > 0 && typeof record.lots === 'number' && Number.isInteger(record.lots) && record.lots > 0)
+            .map((record: any): TradeRecord => ({
+              id: typeof record.id === 'string' ? record.id : createId(),
+              entryId: typeof record.entryId === 'string' ? record.entryId : null,
+              type: record.type === 'sell' ? 'sell' : 'buy',
+              price: record.price,
+              lots: record.lots,
+              tradeDate: normalizeTradeDate(record.tradeDate) ?? currentTradeDate()
+            }))
+          : [],
         dipAlerts: Array.isArray(stock.dipAlerts) && stock.dipAlerts.length
           ? stock.dipAlerts.map((alert: any) => ({
               id: typeof alert.id === 'string' ? alert.id : createId(),
               dropRate: typeof alert.dropRate === 'number' ? alert.dropRate : -3
             }))
-          : defaultDipAlerts()
+          : defaultDipAlerts(),
+        score: normalizeStockScore(stock.score)
       }))
     : defaultBoardPayload().stocks
 
