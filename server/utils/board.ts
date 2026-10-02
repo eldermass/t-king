@@ -3,6 +3,8 @@ import { emptyStockScore } from '~/shared/stock-score'
 
 export type BoardPayload = {
   stocks: StockCard[]
+  preselectedStocks: StockCard[]
+  archivedStocks: StockCard[]
   alerts: Record<string, AlertState>
   notifications: NotificationSettings
 }
@@ -139,6 +141,8 @@ export const defaultBoardPayload = (): BoardPayload => ({
       dipAlerts: defaultDipAlerts()
     }
   ],
+  preselectedStocks: [],
+  archivedStocks: [],
   alerts: {},
   notifications: {
     enabled: true,
@@ -199,6 +203,44 @@ const normalizeActiveReminder = (input: any): ActiveReminder | null => {
   }
 }
 
+const normalizeStandaloneStock = (stock: any): StockCard => ({
+  id: typeof stock?.id === 'string' ? stock.id : createId(),
+  name: typeof stock?.name === 'string' ? stock.name : UNNAMED_STOCK_NAME,
+  code: typeof stock?.code === 'string' ? stock.code : '',
+  subIndustry: typeof stock?.subIndustry === 'string' ? stock.subIndustry : '',
+  riskWarning: typeof stock?.riskWarning === 'string' ? stock.riskWarning : '',
+  riskWarningEnabled: typeof stock?.riskWarningEnabled === 'boolean' ? stock.riskWarningEnabled : false,
+  primaryTheme: typeof stock?.primaryTheme === 'string' ? stock.primaryTheme : '',
+  secondaryTheme: typeof stock?.secondaryTheme === 'string' ? stock.secondaryTheme : '',
+  coreBusiness: typeof stock?.coreBusiness === 'string' ? stock.coreBusiness : '',
+  riseStartPrice: typeof stock?.riseStartPrice === 'number' ? stock.riseStartPrice : null,
+  pullbackStartPrice: typeof stock?.pullbackStartPrice === 'number' ? stock.pullbackStartPrice : null,
+  exitAlertPrice: typeof stock?.exitAlertPrice === 'number' ? stock.exitAlertPrice : null,
+  exitAlertReason: typeof stock?.exitAlertReason === 'string' ? stock.exitAlertReason : '',
+  recommendedDipAlertId: typeof stock?.recommendedDipAlertId === 'string' ? stock.recommendedDipAlertId : null,
+  profileInitializedCode: typeof stock?.profileInitializedCode === 'string' ? stock.profileInitializedCode : null,
+  buyEntries: [],
+  tradeRecords: Array.isArray(stock?.tradeRecords)
+    ? stock.tradeRecords
+      .filter((record: any) => record && typeof record === 'object' && typeof record.price === 'number' && Number.isFinite(record.price) && record.price > 0 && typeof record.lots === 'number' && Number.isInteger(record.lots) && record.lots > 0)
+      .map((record: any): TradeRecord => ({
+        id: typeof record.id === 'string' ? record.id : createId(),
+        entryId: typeof record.entryId === 'string' ? record.entryId : null,
+        type: record.type === 'sell' ? 'sell' : 'buy',
+        price: record.price,
+        lots: record.lots,
+        tradeDate: normalizeTradeDate(record.tradeDate) ?? currentTradeDate()
+      }))
+    : [],
+  dipAlerts: Array.isArray(stock?.dipAlerts) && stock.dipAlerts.length
+    ? stock.dipAlerts.map((alert: any) => ({
+        id: typeof alert.id === 'string' ? alert.id : createId(),
+        dropRate: typeof alert.dropRate === 'number' ? alert.dropRate : -3
+      }))
+    : defaultDipAlerts(),
+  score: normalizeStockScore(stock?.score)
+})
+
 export const normalizeBoardPayload = (input: unknown): BoardPayload => {
   if (!input || typeof input !== 'object') {
     return defaultBoardPayload()
@@ -206,6 +248,8 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
 
   const payload = input as Record<string, unknown>
   const rawStocks = payload.stocks
+  const rawPreselectedStocks = payload.preselectedStocks
+  const rawArchivedStocks = payload.archivedStocks
   const rawAlerts = payload.alerts
 
   const stocks = Array.isArray(rawStocks) && rawStocks.length
@@ -262,6 +306,14 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
       }))
     : defaultBoardPayload().stocks
 
+  const preselectedStocks = Array.isArray(rawPreselectedStocks)
+    ? rawPreselectedStocks.map(normalizeStandaloneStock)
+    : []
+
+  const archivedStocks = Array.isArray(rawArchivedStocks)
+    ? rawArchivedStocks.map(normalizeStandaloneStock)
+    : []
+
   const alerts: Record<string, AlertState> = {}
 
   if (rawAlerts && typeof rawAlerts === 'object') {
@@ -299,5 +351,5 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
     }
   }
 
-  return { stocks, alerts, notifications }
+  return { stocks, preselectedStocks, archivedStocks, alerts, notifications }
 }

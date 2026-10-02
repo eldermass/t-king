@@ -117,6 +117,16 @@ const onDeleteStock = () => removeStock(props.stock.id)
 const scoreOpen = ref(false)
 const scoreDraft = ref<StockScore>(emptyStockScore())
 const scoreDimensions: ScoreDimension[] = ['quality', 'form']
+const starredScoreCriteria = new Set([
+  'popularity',
+  'initiative',
+  'rank',
+  'gameValue',
+  'newHigh15d',
+  'rebound15d',
+  'holdingDays',
+  'stopLoss'
+])
 const scoreSelections = (dimension: ScoreDimension) => scoreDraft.value[`${dimension}Selections`]
 const scoreValue = (dimension: ScoreDimension) => scoreForSelections(dimension, scoreSelections(dimension))
 const displayedScore = (dimension: ScoreDimension) => props.stock.score?.[dimension] ?? scoreValue(dimension)
@@ -215,6 +225,10 @@ const tradeRecordGroupProfit = (group: TradeRecordGroup) => {
   if (profits.every((value) => value === null)) return null
   return profits.reduce((total, value) => total + (value ?? 0), 0)
 }
+const tradeRecordTotalProfit = computed(() => {
+  const profits = tradeRecordGroups.value.map((group) => tradeRecordGroupProfit(group)).filter((value): value is number => value !== null)
+  return profits.length ? profits.reduce((total, value) => total + value, 0) : null
+})
 
 const tradeModal = ref<'buy' | 'offset' | 'close' | 'discard' | null>(null)
 const selectedEntry = ref<BuyEntry | null>(null)
@@ -847,6 +861,14 @@ const submitTrade = () => {
               </td>
             </tr>
           </tbody>
+          <tfoot>
+            <tr>
+              <th colspan="3">总盈亏</th>
+              <th :class="['trade-record-profit', tradeRecordProfitTone(tradeRecordTotalProfit)]">
+                {{ formatAmount(tradeRecordTotalProfit) }}
+              </th>
+            </tr>
+          </tfoot>
         </table>
 
         <table v-if="false" class="trade-records-table">
@@ -900,7 +922,7 @@ const submitTrade = () => {
           <strong :class="scoreTone(scoreValue(dimension))">{{ scoreValue(dimension) ?? '--' }}<small> 分</small></strong>
         </div>
         <label v-for="criterion in stockScoreRules[dimension].criteria" :key="criterion.key" class="score-field">
-          <span>{{ criterion.label }}</span>
+          <span>{{ criterion.label }}<em v-if="starredScoreCriteria.has(criterion.key)" class="score-required-star" aria-hidden="true">*</em></span>
           <input
             v-if="criterion.input"
             class="settings-input"

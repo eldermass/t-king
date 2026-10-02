@@ -113,6 +113,8 @@ import {
 
 type BoardPayload = {
   stocks: StockCard[]
+  preselectedStocks: StockCard[]
+  archivedStocks: StockCard[]
   alerts: Record<string, AlertState>
   notifications: NotificationSettings
 }
@@ -331,6 +333,8 @@ const defaultStocks = (): StockCard[] => [
 
 const defaultBoardPayload = (): BoardPayload => ({
   stocks: defaultStocks(),
+  preselectedStocks: [],
+  archivedStocks: [],
   alerts: {},
   notifications: {
     enabled: true,
@@ -342,6 +346,8 @@ const defaultBoardPayload = (): BoardPayload => ({
 
 export const useStockBoard = () => {
   const stocks = useState<StockCard[]>('stock-board-stocks', () => defaultBoardPayload().stocks)
+  const preselectedStocks = useState<StockCard[]>('stock-board-preselected-stocks', () => defaultBoardPayload().preselectedStocks)
+  const archivedStocks = useState<StockCard[]>('stock-board-archived-stocks', () => defaultBoardPayload().archivedStocks)
   const quotes = useState<Record<string, QuoteState>>('stock-board-quotes', () => ({}))
   const profileStatuses = useState<Record<string, RequestStatus>>('stock-board-profile-statuses', () => ({}))
   const alertStates = useState<Record<string, AlertState>>('stock-board-alert-states', () => ({}))
@@ -794,7 +800,7 @@ export const useStockBoard = () => {
   }
 
   const syncStockNamesFromQuotes = (response: QuoteResponse) => {
-    for (const stock of stocks.value) {
+    for (const stock of [...stocks.value, ...preselectedStocks.value]) {
       const code = normalizeCode(stock.code)
 
       if (!code || !shouldAutofillStockName(stock)) {
@@ -1050,10 +1056,14 @@ export const useStockBoard = () => {
     try {
       const payload = await $fetch<BoardPayload>('/api/board')
       stocks.value = payload.stocks?.length ? payload.stocks : defaultBoardPayload().stocks
+      preselectedStocks.value = Array.isArray(payload.preselectedStocks) ? payload.preselectedStocks : []
+      archivedStocks.value = Array.isArray(payload.archivedStocks) ? payload.archivedStocks : []
       alertStates.value = payload.alerts ?? {}
       notificationSettings.value = payload.notifications ?? defaultBoardPayload().notifications
       syncAlertStates()
-      lastCodeSnapshot.value = Object.fromEntries(stocks.value.map((stock) => [stock.id, normalizeCode(stock.code)]))
+      lastCodeSnapshot.value = Object.fromEntries(
+        [...stocks.value, ...preselectedStocks.value].map((stock) => [stock.id, normalizeCode(stock.code)])
+      )
       hydrated.value = true
       boardReady.value = true
     } finally {
@@ -1073,6 +1083,8 @@ export const useStockBoard = () => {
         method: 'PUT',
         body: {
           stocks: stocks.value,
+          preselectedStocks: preselectedStocks.value,
+          archivedStocks: archivedStocks.value,
           alerts: alertStates.value,
           notifications: notificationSettings.value
         }
@@ -1108,7 +1120,11 @@ export const useStockBoard = () => {
   }
 
   const refreshQuotes = async () => {
-    const codes = [...new Set(stocks.value.map((stock) => normalizeCode(stock.code)).filter((code) => isValidCode(code)))]
+    const codes = [...new Set(
+      [...stocks.value, ...preselectedStocks.value]
+        .map((stock) => normalizeCode(stock.code))
+        .filter((code) => isValidCode(code))
+    )]
 
     if (!codes.length) {
       quotes.value = {}
@@ -1191,7 +1207,8 @@ export const useStockBoard = () => {
   }
 
   const refreshProfiles = async () => {
-    const codes = [...new Set(stocks.value.map((stock) => normalizeCode(stock.code)).filter((code) => isValidCode(code)))]
+    const profileStocks = [...stocks.value, ...preselectedStocks.value]
+    const codes = [...new Set(profileStocks.map((stock) => normalizeCode(stock.code)).filter((code) => isValidCode(code)))]
 
     if (!codes.length) {
       profileStatuses.value = {}
@@ -1207,7 +1224,7 @@ export const useStockBoard = () => {
         query: { codes: codes.join(',') }
       })
 
-      for (const stock of stocks.value) {
+      for (const stock of profileStocks) {
         const code = normalizeCode(stock.code)
 
         if (!isValidCode(code)) {
@@ -1348,6 +1365,30 @@ export const useStockBoard = () => {
     })
   }
 
+  const addPreselectedStock = () => {
+    preselectedStocks.value.unshift({
+      id: createId(),
+      name: DEFAULT_STOCK_NAME,
+      code: '',
+      subIndustry: '',
+      riskWarning: '',
+      riskWarningEnabled: false,
+      riseStartPrice: null,
+      pullbackStartPrice: null,
+      exitAlertPrice: null,
+      exitAlertReason: '',
+      primaryTheme: '',
+      secondaryTheme: '',
+      coreBusiness: '',
+      recommendedDipAlertId: null,
+      profileInitializedCode: null,
+      buyEntries: [],
+      tradeRecords: [],
+      dipAlerts: defaultDipAlerts(),
+      score: undefined
+    })
+  }
+
   const confirmDelete = (message: string) => window.confirm(message)
 
   const removeStock = (stockId: string) => {
@@ -1381,6 +1422,25 @@ export const useStockBoard = () => {
         delete notificationSettings.value.activeReminders[key]
       }
     }
+  }
+
+  const removePreselectedStock = (stockId: string) => {
+    if (!confirmDelete('确认删除这只预选股票吗？')) {
+      return
+    }
+
+    preselectedStocks.value = preselectedStocks.value.filter((stock) => stock.id !== stockId)
+  }
+
+  const movePreselectedToBoard = (stockId: string) => {
+    const stock = preselectedStocks.value.find((item) => item.id === stockId)
+
+    if (!stock) {
+      return
+    }
+
+    preselectedStocks.value = preselectedStocks.value.filter((item) => item.id !== stockId)
+    stocks.value = [stock, ...stocks.value.filter((item) => item.id !== stockId)]
   }
 
   const addBuyEntry = (stock: StockCard, price: number, targetRate: number, lots: number) => {
@@ -1434,10 +1494,18 @@ export const useStockBoard = () => {
         continue
       }
 
+      if (entry.buyPrice !== null && entry.buyPrice > 0 && !stock.tradeRecords.some((record) => record.entryId === entry.id)) {
+        stock.tradeRecords.push(createTradeRecord(entry.lots > 0 ? 'buy' : 'sell', roundMoneyPrice(entry.buyPrice), Math.abs(entry.lots), entry.id))
+      }
+
       stock.tradeRecords.push(createTradeRecord(entry.lots > 0 ? 'sell' : 'buy', closePrice, Math.abs(entry.lots), entry.id))
     }
 
     stock.buyEntries = []
+    archivedStocks.value = [stock, ...archivedStocks.value.filter((item) => item.id !== stock.id)]
+    stocks.value = stocks.value.filter((item) => item.id !== stock.id)
+    delete alertStates.value[stock.id]
+    delete lastCodeSnapshot.value[stock.id]
     return true
   }
 
@@ -1499,7 +1567,7 @@ export const useStockBoard = () => {
   })
 
   watch(
-    stocks,
+    [stocks, preselectedStocks, archivedStocks],
     () => {
       if (!boardReady.value) {
         return
@@ -1536,11 +1604,12 @@ export const useStockBoard = () => {
   )
 
   watch(
-    () => stocks.value.map((stock) => normalizeCode(stock.code)).join('|'),
+    () => [...stocks.value, ...preselectedStocks.value].map((stock) => `${stock.id}:${normalizeCode(stock.code)}`).join('|'),
     () => {
-      const nextSnapshot = Object.fromEntries(stocks.value.map((stock) => [stock.id, normalizeCode(stock.code)]))
+      const trackedStocks = [...stocks.value, ...preselectedStocks.value]
+      const nextSnapshot = Object.fromEntries(trackedStocks.map((stock) => [stock.id, normalizeCode(stock.code)]))
 
-      for (const stock of stocks.value) {
+      for (const stock of trackedStocks) {
         const previousCode = lastCodeSnapshot.value[stock.id]
         const nextCode = nextSnapshot[stock.id]
 
@@ -1566,6 +1635,8 @@ export const useStockBoard = () => {
 
   return {
     stocks,
+    preselectedStocks,
+    archivedStocks,
     quotes,
     profileStatuses,
     alertStates,
@@ -1626,7 +1697,10 @@ export const useStockBoard = () => {
     reorderStocks,
     moveStockByOffset,
     addStock,
+    addPreselectedStock,
     removeStock,
+    removePreselectedStock,
+    movePreselectedToBoard,
     addBuyEntry,
     offsetBuyEntry,
     closeStock,
