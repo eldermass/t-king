@@ -65,6 +65,7 @@ const {
   profitSign,
   quoteFor,
   quoteTone,
+  refreshQuotes,
   holdingCycle,
   holdingCycleLabel,
   profileText,
@@ -237,20 +238,26 @@ const buyDraft = ref({ price: null as number | null, targetRate: 4, lots: 1, sig
 const offsetDraft = ref({ price: null as number | null, lots: 1 })
 const closeDraft = ref({ price: null as number | null })
 
-const openBuy = () => {
+const currentLivePrice = () => {
   const livePrice = quoteFor(props.stock.code).price
-  const initialPrice = typeof livePrice === 'number' && Number.isFinite(livePrice) && livePrice > 0
+
+  return typeof livePrice === 'number' && Number.isFinite(livePrice) && livePrice > 0
     ? livePrice
     : null
+}
 
-  buyDraft.value = { price: initialPrice, targetRate: 4, lots: 1, sign: 1 }
+const openBuy = async () => {
+  await refreshQuotes()
+
+  buyDraft.value = { price: currentLivePrice(), targetRate: 4, lots: 1, sign: 1 }
   tradeError.value = ''
   tradeModal.value = 'buy'
 }
 
-const openOffset = (entry: BuyEntry) => {
+const openOffset = async (entry: BuyEntry) => {
   selectedEntry.value = entry
-  offsetDraft.value = { price: null, lots: Math.abs(entry.lots ?? 1) }
+  await refreshQuotes()
+  offsetDraft.value = { price: currentLivePrice(), lots: Math.abs(entry.lots ?? 1) }
   tradeError.value = ''
   tradeModal.value = 'offset'
 }

@@ -1432,6 +1432,14 @@ export const useStockBoard = () => {
     preselectedStocks.value = preselectedStocks.value.filter((stock) => stock.id !== stockId)
   }
 
+  const removeArchivedStock = (stockId: string) => {
+    if (!confirmDelete('确认删除这只归档股票及其交易记录吗？')) {
+      return
+    }
+
+    archivedStocks.value = archivedStocks.value.filter((stock) => stock.id !== stockId)
+  }
+
   const movePreselectedToBoard = (stockId: string) => {
     const stock = preselectedStocks.value.find((item) => item.id === stockId)
 
@@ -1700,6 +1708,7 @@ export const useStockBoard = () => {
     addPreselectedStock,
     removeStock,
     removePreselectedStock,
+    removeArchivedStock,
     movePreselectedToBoard,
     addBuyEntry,
     offsetBuyEntry,

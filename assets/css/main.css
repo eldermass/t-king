@@ -443,7 +443,7 @@ input {
 .archive-section-head-actions { display:flex; align-items:center; gap:10px; }
 .archive-section-head-actions > span { color:var(--muted); font-size:.78rem; }
 .archive-card-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; }
-.archive-stock-card { display:grid; gap:7px; min-height:112px; padding:16px; border:1px solid var(--line); border-radius:10px; background:rgba(255,250,240,.7); color:var(--text); text-align:left; cursor:pointer; font:inherit; transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
+.archive-stock-card { position:relative; display:grid; gap:7px; min-height:112px; padding:16px 64px 16px 16px; border:1px solid var(--line); border-radius:10px; background:rgba(255,250,240,.7); color:var(--text); text-align:left; cursor:pointer; font:inherit; transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
 .archive-stock-card:hover, .archive-stock-card:focus-visible { border-color:rgba(198,79,52,.4); box-shadow:0 10px 22px rgba(71,43,18,.1); outline:0; transform:translateY(-2px); }
 .archive-stock-card-closed { background:rgba(31,111,98,.05); }
 .archive-stock-name { overflow:hidden; font-size:1rem; font-weight:800; text-overflow:ellipsis; white-space:nowrap; }
@@ -456,7 +456,7 @@ input {
 .archive-stock-score .is-low { color:var(--accent-2); }
 .archive-stock-score .is-neutral { color:var(--muted); }
 .archive-empty { margin:0; padding:28px 0 12px; color:var(--muted); text-align:center; font-size:.85rem; }
-.archive-stock-actions { display:flex; align-items:center; gap:7px; margin-top:3px; }
+.archive-stock-actions { position:absolute; top:12px; right:12px; display:flex; flex-direction:column; align-items:flex-end; gap:5px; margin:0; }
 .archive-buy-btn { min-height:28px; padding:5px 9px; }
 .archive-delete-btn { min-width:28px; min-height:28px; padding:4px 7px; }
 .archive-score-modal { width:min(100%, 680px); }
@@ -467,7 +467,7 @@ input {
   .archive-section-head { align-items:stretch; flex-direction:column; }
   .archive-section-head-actions { justify-content:space-between; }
   .archive-card-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
-  .archive-stock-card { min-height:100px; padding:12px; }
+  .archive-stock-card { min-height:100px; padding:12px 60px 12px 12px; }
   .archive-stock-name { font-size:.9rem; }
 }
 
@@ -1239,9 +1239,13 @@ td input:focus {
 .delete-entry-btn {
   min-width: 30px;
   padding: 5px 8px;
-  background: var(--accent);
+  background: #e2a21d;
   color: #fff;
   font-size: 0.82rem;
+}
+
+.delete-entry-btn:hover {
+  background: #c8890f;
 }
 
 .dip-section th,

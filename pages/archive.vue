@@ -11,6 +11,7 @@ const {
   archivedStocks,
   addPreselectedStock,
   removePreselectedStock,
+  removeArchivedStock,
   movePreselectedToBoard,
   formatPrice,
   formatAmount
@@ -153,11 +154,14 @@ const logout = async () => {
     <section class="archive-section">
       <header class="archive-section-head"><div><span class="archive-section-kicker">CLOSED TRADES</span><h2>归档票</h2></div><span>{{ archivedStocks.length }} 只</span></header>
       <div v-if="archivedStocks.length" class="archive-card-grid">
-        <button v-for="stock in archivedStocks" :key="stock.id" class="archive-stock-card archive-stock-card-closed" type="button" @click="openRecords(stock)">
+        <article v-for="stock in archivedStocks" :key="stock.id" class="archive-stock-card archive-stock-card-closed" role="button" tabindex="0" @click="openRecords(stock)" @keydown.enter="openRecords(stock)">
           <span class="archive-stock-name">{{ stock.name || stock.code || '未命名股票' }}</span>
           <span class="archive-stock-code">{{ stock.code || '--' }}</span>
           <span class="archive-stock-score">{{ recordCount(stock) }} 条交易记录</span>
-        </button>
+          <div class="archive-stock-actions" @click.stop>
+            <button class="icon-btn archive-delete-btn" type="button" aria-label="删除归档股票" @click="removeArchivedStock(stock.id)">删</button>
+          </div>
+        </article>
       </div>
       <p v-else class="archive-empty">暂无归档股票</p>
     </section>
