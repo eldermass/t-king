@@ -246,6 +246,40 @@ const currentLivePrice = () => {
     : null
 }
 
+const estimatedStopLoss = (stock: StockCard) => {
+  const stopPrice = stock.exitAlertPrice
+
+  if (typeof stopPrice !== 'number' || !Number.isFinite(stopPrice) || stopPrice <= 0) {
+    return null
+  }
+
+  const entries = stock.buyEntries.filter((entry) =>
+    entry.buyPrice !== null && entry.buyPrice > 0 && entry.lots !== null && entry.lots !== 0
+  )
+
+  if (!entries.length) {
+    return null
+  }
+
+  const netLoss = entries.reduce(
+    (total, entry) => total + ((entry.buyPrice as number) - stopPrice) * (entry.lots as number) * 100,
+    0
+  )
+
+  return Math.max(netLoss, 0)
+}
+
+const estimatedDropRateFromFirstBuy = (stock: StockCard) => {
+  const firstBuyPrice = referencePrice(stock)
+  const stopPrice = stock.exitAlertPrice
+
+  if (firstBuyPrice === null || firstBuyPrice <= 0 || typeof stopPrice !== 'number' || !Number.isFinite(stopPrice) || stopPrice <= 0) {
+    return null
+  }
+
+  return Math.max(((firstBuyPrice - stopPrice) / firstBuyPrice) * 100, 0)
+}
+
 const openBuy = async () => {
   await refreshQuotes()
 
@@ -659,7 +693,7 @@ const submitTrade = () => {
 
     <section class="table-section dip-section exit-alert-section">
       <div class="section-head">
-        <h2>离场提醒</h2>
+        <h2>绝对止损提醒</h2>
         <span v-if="isExitAlertTriggered(stock.id)" class="exit-alert-status">已跌破</span>
       </div>
 
@@ -667,8 +701,10 @@ const submitTrade = () => {
         <table>
           <thead>
             <tr>
-              <th>离场价</th>
-              <th>离场原因</th>
+              <th>止损价</th>
+              <th>止损原因</th>
+              <th>预估损失</th>
+              <th>预估跌幅</th>
             </tr>
           </thead>
           <tbody>
@@ -689,8 +725,14 @@ const submitTrade = () => {
                   v-model="stock.exitAlertReason"
                   class="warn-input"
                   type="text"
-                  placeholder="填写离场原因"
+                  placeholder="填写止损原因"
                 />
+              </td>
+              <td class="warn-text stop-loss-amount">
+                {{ formatAmount(estimatedStopLoss(stock)) }}
+              </td>
+              <td class="warn-text stop-loss-rate">
+                {{ estimatedDropRateFromFirstBuy(stock) === null ? '--' : `${estimatedDropRateFromFirstBuy(stock).toFixed(2)}%` }}
               </td>
             </tr>
           </tbody>
