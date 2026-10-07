@@ -34,6 +34,7 @@ export type StockCard = {
   coreBusiness: string
   riskWarning: string
   riskWarningEnabled: boolean
+  klineAnalysis: string
   riseStartPrice: number | null
   pullbackStartPrice: number | null
   exitAlertPrice: number | null
@@ -274,6 +275,7 @@ const defaultStocks = (): StockCard[] => [
     coreBusiness: '研发、生产和销售触控显示器件材料、车载显示模组、超薄玻璃盖板（UTG）等电子显示器件与材料。',
     riskWarning: '',
     riskWarningEnabled: false,
+    klineAnalysis: '',
     riseStartPrice: null,
     pullbackStartPrice: null,
     exitAlertPrice: null,
@@ -294,6 +296,7 @@ const defaultStocks = (): StockCard[] => [
     coreBusiness: '提供全案推广、全案广告代理、出海广告投放及 AI 营销等一站式营销科技服务，覆盖品牌传播与效果投放。',
     riskWarning: '',
     riskWarningEnabled: false,
+    klineAnalysis: '',
     riseStartPrice: null,
     pullbackStartPrice: null,
     exitAlertPrice: null,
@@ -314,6 +317,7 @@ const defaultStocks = (): StockCard[] => [
     coreBusiness: '为企业提供出海整合营销、数字营销、广告变现，以及 AI 数字创意、BI 决策、CI 智能化多云管理等出海数字化服务。',
     riskWarning: '',
     riskWarningEnabled: false,
+    klineAnalysis: '',
     riseStartPrice: null,
     pullbackStartPrice: null,
     exitAlertPrice: null,
@@ -1350,6 +1354,7 @@ export const useStockBoard = () => {
       subIndustry: '',
       riskWarning: '',
       riskWarningEnabled: false,
+      klineAnalysis: '',
       riseStartPrice: null,
       pullbackStartPrice: null,
       exitAlertPrice: null,
@@ -1373,6 +1378,7 @@ export const useStockBoard = () => {
       subIndustry: '',
       riskWarning: '',
       riskWarningEnabled: false,
+      klineAnalysis: '',
       riseStartPrice: null,
       pullbackStartPrice: null,
       exitAlertPrice: null,

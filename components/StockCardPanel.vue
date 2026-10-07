@@ -56,7 +56,6 @@ const {
   entryCurrentProfit,
   entryCurrentProfitTone,
   isRiskWarningTriggered,
-  priceMarkerSpread,
   priceMarkerRate,
   investedAmount,
   totalMarketValue,
@@ -610,8 +609,9 @@ const submitTrade = () => {
           <thead>
             <tr>
               <th>起涨价</th>
-              <th>上涨差价</th>
               <th>上涨幅度</th>
+              <th>起调价</th>
+              <th>回调幅度</th>
             </tr>
           </thead>
           <tbody>
@@ -627,29 +627,11 @@ const submitTrade = () => {
                   @input="handleMarkerPriceInput(stock, 'riseStartPrice', (($event.target as HTMLInputElement)?.value ?? ''))"
                 />
               </td>
-              <td>
-                {{ formatSellPrice(priceMarkerSpread(stock, 'riseStartPrice')) }}
-              </td>
               <td class="warn-text">
                 <span :class="{ 'marker-rate-alert': isPriceMarkerRateAlert(stock, 'riseStartPrice') }">
                   {{ formatPercent(priceMarkerRate(stock, 'riseStartPrice')) }}
                 </span>
               </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>起调价</th>
-              <th>回调差价</th>
-              <th>回调幅度</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
               <td>
                 <input
                   :value="stock.pullbackStartPrice ?? ''"
@@ -661,9 +643,6 @@ const submitTrade = () => {
                   @input="handleMarkerPriceInput(stock, 'pullbackStartPrice', (($event.target as HTMLInputElement)?.value ?? ''))"
                 />
               </td>
-              <td>
-                {{ formatSellPrice(priceMarkerSpread(stock, 'pullbackStartPrice')) }}
-              </td>
               <td class="warn-text">
                 <span :class="{ 'marker-rate-alert': isPriceMarkerRateAlert(stock, 'pullbackStartPrice') }">
                   {{ formatPercent(priceMarkerRate(stock, 'pullbackStartPrice')) }}
@@ -673,6 +652,18 @@ const submitTrade = () => {
           </tbody>
         </table>
       </div>
+    </section>
+
+    <section class="table-section info-section kline-analysis-section">
+      <div class="section-head">
+        <h2>K线形态分析</h2>
+      </div>
+      <textarea
+        v-model="stock.klineAnalysis"
+        class="info-textarea"
+        rows="4"
+        placeholder="记录当前股票的 K 线形态、关键位置和后续观察"
+      />
     </section>
 
     <section class="table-section info-section risk-warning-section">
