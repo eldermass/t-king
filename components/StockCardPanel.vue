@@ -72,7 +72,6 @@ const {
   cardAlertClass,
   isExitAlertTriggered,
   isSellTriggered,
-  dipAlertClass,
   handleMarkerPriceInput,
   handleExitAlertPriceInput,
   handleDipAlertPriceInput,
@@ -134,6 +133,14 @@ const scoreTone = (value: number | null) => {
   if (value !== null && value >= 40) return 'is-high'
   if (value !== null && value <= 20) return 'is-low'
   return 'is-neutral'
+}
+const formatDipRate = (value: number) => Number.isFinite(value) ? value.toFixed(1) : ''
+const setDipRate = (alert: { dropRate: number }, rawValue: string) => {
+  const nextRate = Number(rawValue)
+
+  if (rawValue.trim() && Number.isFinite(nextRate)) {
+    alert.dropRate = nextRate
+  }
 }
 const setScoreSelection = (dimension: ScoreDimension, key: string, value: string) => {
   scoreSelections(dimension)[key] = value
@@ -547,7 +554,7 @@ const submitTrade = () => {
       </div>
     </section>
 
-    <section class="table-section dip-section">
+    <section class="table-section dip-section dip-alert-section">
       <div class="section-head">
         <h2>补仓提醒</h2>
         <button class="mini-btn" type="button" @click="addDipAlert(stock)">
@@ -561,6 +568,7 @@ const submitTrade = () => {
             <tr>
               <th>跌幅</th>
               <th>提醒价</th>
+              <th>理由</th>
               <th>上次差率</th>
               <th>删</th>
             </tr>
@@ -568,22 +576,23 @@ const submitTrade = () => {
           <tbody>
             <tr v-for="alert in stock.dipAlerts" :key="alert.id">
               <td>
-                <div class="inline-field">
-                  <input v-model.number="alert.dropRate" type="number" step="0.1" />
-                  <span>%</span>
-                </div>
+                <input
+                  :value="formatDipRate(alert.dropRate)"
+                  step="0.1"
+                  @change="setDipRate(alert, (($event.target as HTMLInputElement)?.value ?? ''))"
+                />
               </td>
               <td>
                 <input
                   :value="dipPrice(referencePrice(stock), alert.dropRate) ?? ''"
-                  class="warn-input"
-                  :class="dipAlertClass(stock.id, alert)"
-                  type="number"
                   min="0"
                   step="0.01"
                   placeholder="0.00"
                   @input="handleDipAlertPriceInput(stock, alert, (($event.target as HTMLInputElement)?.value ?? ''))"
                 />
+              </td>
+              <td>
+                <input v-model="alert.reason" type="text" placeholder="输入理由" />
               </td>
               <td class="warn-text">
                 {{ formatPercent(dipAlertSpreadRate(stock, alert)) }}

@@ -81,6 +81,14 @@ export const saveMarketDataRow = async (event: H3Event, row: MarketDataRow) => {
   return { ...row, volumeChange }
 }
 
+export const deleteMarketDataRow = async (event: H3Event, tradeDate: string) => {
+  const db = dbFor(event)
+  if (!db) throw new Error('D1 database binding is unavailable')
+
+  await db.prepare('DELETE FROM market_data_daily WHERE trade_date = ?').bind(tradeDate).run()
+  return { ok: true, tradeDate }
+}
+
 export const refreshMarketDataRow = async (event: H3Event, requestedDate: string) => {
   const today = shanghaiDate(new Date())
   if (requestedDate !== today) throw new Error('只能刷新当前交易日的市场数据')

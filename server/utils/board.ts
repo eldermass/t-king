@@ -68,9 +68,10 @@ const createBuyEntry = (
   lotsManual
 })
 
-const createDipAlert = (dropRate = -3): DipAlert => ({
+const createDipAlert = (dropRate = -3, reason = ''): DipAlert => ({
   id: createId(),
-  dropRate
+  dropRate,
+  reason
 })
 
 const defaultDipAlerts = () => [
@@ -239,7 +240,8 @@ const normalizeStandaloneStock = (stock: any): StockCard => ({
   dipAlerts: Array.isArray(stock?.dipAlerts) && stock.dipAlerts.length
     ? stock.dipAlerts.map((alert: any) => ({
         id: typeof alert.id === 'string' ? alert.id : createId(),
-        dropRate: typeof alert.dropRate === 'number' ? alert.dropRate : -3
+        dropRate: typeof alert.dropRate === 'number' ? alert.dropRate : -3,
+        reason: typeof alert.reason === 'string' ? alert.reason : ''
       }))
     : defaultDipAlerts(),
   score: normalizeStockScore(stock?.score)
@@ -304,7 +306,8 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
         dipAlerts: Array.isArray(stock.dipAlerts) && stock.dipAlerts.length
           ? stock.dipAlerts.map((alert: any) => ({
               id: typeof alert.id === 'string' ? alert.id : createId(),
-              dropRate: typeof alert.dropRate === 'number' ? alert.dropRate : -3
+              dropRate: typeof alert.dropRate === 'number' ? alert.dropRate : -3,
+              reason: typeof alert.reason === 'string' ? alert.reason : ''
             }))
           : defaultDipAlerts(),
         score: normalizeStockScore(stock.score)

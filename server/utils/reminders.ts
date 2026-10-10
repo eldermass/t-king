@@ -27,7 +27,8 @@ const stockFingerprint = (stock: StockCard) =>
     profileInitializedCode: stock.profileInitializedCode ?? null,
     dipAlerts: stock.dipAlerts.map((alert) => ({
       id: alert.id,
-      dropRate: alert.dropRate
+      dropRate: alert.dropRate,
+      reason: alert.reason.trim()
     }))
   })
 
@@ -44,6 +45,7 @@ const createReminder = (
   const code = normalizeCode(stock.code)
   const name = stockDisplayName(stock, quote)
   const key = `${stock.id}:${kind}:${triggerId}`
+  const dipAlert = kind === 'dip' ? stock.dipAlerts.find((alert) => alert.id === triggerId) : null
 
   return {
     key,
@@ -54,7 +56,7 @@ const createReminder = (
     triggerId,
     stockFingerprint: stockFingerprint(stock),
     triggerPrice,
-    reason: kind === 'exit' ? stock.exitAlertReason.trim() : '',
+    reason: kind === 'exit' ? stock.exitAlertReason.trim() : dipAlert?.reason.trim() ?? '',
     lastSentAt: null
   }
 }
@@ -211,13 +213,19 @@ export const buildReminderMessage = (reminder: ActiveReminder, quote: QuoteSnaps
   const triggerText = formatPrice(reminder.triggerPrice)
 
   if (reminder.kind !== 'exit') {
-    return [
+    const lines = [
       `# ${actionText}`,
       `> ${reminder.stockName} ${reminder.stockCode}`,
       `当前价：${livePrice} (${changeText})`,
-      `触发价：${triggerText}`,
-      `时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`
-    ].join('\n')
+      `触发价：${triggerText}`
+    ]
+
+    if (reminder.reason.trim()) {
+      lines.push(`理由：${reminder.reason.trim()}`)
+    }
+
+    lines.push(`时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`)
+    return lines.join('\n')
   }
 
   const lines = [

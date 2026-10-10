@@ -10,6 +10,7 @@ export type BuyEntryLike = {
 export type DipAlertLike = {
   id: string
   dropRate: number
+  reason?: string
 }
 
 export type StockLike = {
@@ -27,6 +28,7 @@ export type TriggeredDipAlert = {
   id: string
   dropRate: number
   triggerPrice: number
+  reason: string
 }
 
 export type TriggeredSellEntry = {
@@ -126,7 +128,8 @@ export const evaluateStockTriggers = (stock: StockLike, livePrice: number | null
     triggeredDipAlerts.push({
       id: alert.id,
       dropRate: alert.dropRate,
-      triggerPrice
+      triggerPrice,
+      reason: alert.reason?.trim() ?? ''
     })
 
     if (alert.dropRate <= -7) {

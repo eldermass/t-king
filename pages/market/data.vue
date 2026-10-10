@@ -8,6 +8,7 @@ type MarketRow = {
 const rows = ref<MarketRow[]>([])
 const loading = ref(true)
 const refreshingDate = ref('')
+const deletingDate = ref('')
 const error = ref('')
 const formatPercent = (value: number | null) => value === null ? '--' : `${(value * 100).toFixed(2)}%`
 const formatVolume = (value: number | null) => value === null ? '--' : `${(value / 10000).toFixed(0)} 亿`
@@ -51,7 +52,7 @@ const load = async () => {
   finally { loading.value = false }
 }
 const refreshRow = async (row: MarketRow) => {
-  if (refreshingDate.value) return
+  if (refreshingDate.value || deletingDate.value) return
   refreshingDate.value = row.tradeDate
   error.value = ''
   try {
@@ -61,6 +62,22 @@ const refreshRow = async (row: MarketRow) => {
     error.value = cause?.data?.statusMessage || cause?.statusMessage || (cause instanceof Error ? cause.message : '市场数据更新失败')
   } finally {
     refreshingDate.value = ''
+  }
+}
+const deleteRow = async (row: MarketRow) => {
+  if (refreshingDate.value || deletingDate.value) return
+  if (!window.confirm(`确认删除 ${row.tradeDate} 的市场数据吗？`)) return
+
+  deletingDate.value = row.tradeDate
+  error.value = ''
+  try {
+    await $fetch('/api/market/data', { method: 'DELETE', body: { tradeDate: row.tradeDate } })
+    rows.value = rows.value.filter((item) => item.tradeDate !== row.tradeDate)
+    setPage(currentPage.value)
+  } catch (cause: any) {
+    error.value = cause?.data?.statusMessage || cause?.statusMessage || (cause instanceof Error ? cause.message : '市场数据删除失败')
+  } finally {
+    deletingDate.value = ''
   }
 }
 onMounted(load)
@@ -73,7 +90,7 @@ onMounted(load)
     <section class="market-data-panel">
       <div v-if="loading" class="market-data-empty">正在读取市场数据...</div>
       <div v-else-if="!rows.length" class="market-data-empty">暂无数据库记录，请先打开情绪页面读取行情。</div>
-      <div v-else class="market-data-table-wrap"><table class="market-data-table"><thead><tr><th>日期</th><th>更新时间</th><th>上证指数涨跌幅</th><th>创业板指数涨跌幅</th><th>科创50涨跌幅</th><th>成交量</th><th>成交量变化</th><th>上涨家数</th><th>下跌家数</th><th>涨停数</th><th>跌停数</th><th>情绪评分</th></tr></thead><tbody><tr v-for="row in visibleRows" :key="row.tradeDate"><td>{{ row.tradeDate }}</td><td><span>{{ formatUpdatedAt(row.updatedAt) }}</span><button v-if="canRefresh(row)" class="market-data-update" type="button" :disabled="Boolean(refreshingDate)" :aria-label="`更新 ${row.tradeDate} 市场数据`" @click="refreshRow(row)"><span aria-hidden="true">↻</span>{{ refreshingDate === row.tradeDate ? '更新中' : '更新' }}</button></td><td :class="changeClass(row.shIndexChange)">{{ formatPercent(row.shIndexChange) }}</td><td :class="changeClass(row.chinextIndexChange)">{{ formatPercent(row.chinextIndexChange) }}</td><td :class="changeClass(row.sci50IndexChange)">{{ formatPercent(row.sci50IndexChange) }}</td><td>{{ formatVolume(row.volume) }}</td><td :class="changeClass(row.volumeChange)">{{ formatVolumeChange(row.volumeChange) }}</td><td :class="advancersClass(row.advancers)">{{ formatNumber(row.advancers) }}</td><td :class="declinersClass(row.decliners)">{{ formatNumber(row.decliners) }}</td><td :class="limitUpClass(row.limitUpCount)">{{ formatNumber(row.limitUpCount) }}</td><td :class="limitDownClass(row.limitDownCount)">{{ formatNumber(row.limitDownCount) }}</td><td><strong class="score-chip" :class="scoreClass(row.sentimentScore)" :title="scoreLabel(row.sentimentScore)">{{ row.sentimentScore === null ? '--' : row.sentimentScore.toFixed(0) }}</strong></td></tr></tbody></table></div>
+      <div v-else class="market-data-table-wrap"><table class="market-data-table"><thead><tr><th>日期</th><th>更新时间</th><th>上证指数涨跌幅</th><th>创业板指数涨跌幅</th><th>科创50涨跌幅</th><th>成交量</th><th>成交量变化</th><th>上涨家数</th><th>下跌家数</th><th>涨停数</th><th>跌停数</th><th>情绪评分</th><th>操作</th></tr></thead><tbody><tr v-for="row in visibleRows" :key="row.tradeDate"><td>{{ row.tradeDate }}</td><td><span>{{ formatUpdatedAt(row.updatedAt) }}</span><button v-if="canRefresh(row)" class="market-data-update" type="button" :disabled="Boolean(refreshingDate || deletingDate)" :aria-label="`更新 ${row.tradeDate} 市场数据`" @click="refreshRow(row)"><span aria-hidden="true">↻</span>{{ refreshingDate === row.tradeDate ? '更新中' : '更新' }}</button></td><td :class="changeClass(row.shIndexChange)">{{ formatPercent(row.shIndexChange) }}</td><td :class="changeClass(row.chinextIndexChange)">{{ formatPercent(row.chinextIndexChange) }}</td><td :class="changeClass(row.sci50IndexChange)">{{ formatPercent(row.sci50IndexChange) }}</td><td>{{ formatVolume(row.volume) }}</td><td :class="changeClass(row.volumeChange)">{{ formatVolumeChange(row.volumeChange) }}</td><td :class="advancersClass(row.advancers)">{{ formatNumber(row.advancers) }}</td><td :class="declinersClass(row.decliners)">{{ formatNumber(row.decliners) }}</td><td :class="limitUpClass(row.limitUpCount)">{{ formatNumber(row.limitUpCount) }}</td><td :class="limitDownClass(row.limitDownCount)">{{ formatNumber(row.limitDownCount) }}</td><td><strong class="score-chip" :class="scoreClass(row.sentimentScore)" :title="scoreLabel(row.sentimentScore)">{{ row.sentimentScore === null ? '--' : row.sentimentScore.toFixed(0) }}</strong></td><td><button class="market-data-delete" type="button" :disabled="Boolean(refreshingDate || deletingDate)" :aria-label="`删除 ${row.tradeDate} 市场数据`" @click="deleteRow(row)">删除</button></td></tr></tbody></table></div>
       <div v-if="!loading && rows.length" class="market-data-pagination"><button type="button" :disabled="currentPage === 1" @click="setPage(currentPage - 1)">上一页</button><span>第 {{ currentPage }} / {{ pageCount }} 页，共 {{ rows.length }} 条</span><button type="button" :disabled="currentPage === pageCount" @click="setPage(currentPage + 1)">下一页</button></div>
     </section>
   </main>

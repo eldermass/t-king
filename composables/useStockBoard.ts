@@ -20,6 +20,7 @@ export type TradeRecord = {
 export type DipAlert = {
   id: string
   dropRate: number
+  reason: string
 }
 
 import type { StockScore } from '~/shared/stock-score'
@@ -253,9 +254,10 @@ const createTradeRecord = (
   tradeDate: currentTradeDate()
 })
 
-const createDipAlert = (dropRate = -3): DipAlert => ({
+const createDipAlert = (dropRate = -3, reason = ''): DipAlert => ({
   id: createId(),
-  dropRate
+  dropRate,
+  reason
 })
 
 const defaultDipAlerts = () => [
