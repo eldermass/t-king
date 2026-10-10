@@ -167,7 +167,7 @@ onBeforeUnmount(() => {
 <template>
   <main class="page-shell">
     <section class="topbar">
-      <h1>T王做T助手</h1>
+      <h1><MarketScoreButton /></h1>
 
       <div class="topbar-actions">
         <span class="market-tip">{{ session?.user?.username }}</span>
