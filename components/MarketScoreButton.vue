@@ -43,7 +43,7 @@ const criteria: Criterion[] = [
   },
   {
     key: 'trend', label: '趋势', hint: '选择当前趋势状态', kind: 'select',
-    options: [{ label: '上升', value: 'up', score: 10 }, { label: '下降转震荡', value: 'downToRange', score: 4 }, { label: '震荡', value: 'range', score: 4 }, { label: '上升转震荡', value: 'upToRange', score: 5 }, { label: '下降', value: 'down', score: -2 }]
+    options: [{ label: '上升', value: 'up', score: 10 }, { label: '下降转震荡', value: 'downToRange', score: 4 }, { label: '震荡', value: 'range', score: 4 }, { label: '上升转震荡', value: 'upToRange', score: 0 }, { label: '下降', value: 'down', score: -2 }]
   },
   {
     key: 'cycle', label: '情绪周期', hint: '选择市场所处阶段', kind: 'select',
