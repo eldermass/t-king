@@ -127,8 +127,10 @@ export const saveLimitUpRawSnapshot = async (event: H3Event, result: LimitUpResu
     .bind(result.tradeDate).run()
 
   const statements: Array<unknown> = []
-  for (let index = 0; index < result.rawRows.length; index += 100) {
-    const rows = result.rawRows.slice(index, index + 100)
+  // D1 limits a statement to 100 bound variables. Each quote row uses five,
+  // so keep each INSERT at 20 rows or fewer.
+  for (let index = 0; index < result.rawRows.length; index += 20) {
+    const rows = result.rawRows.slice(index, index + 20)
     const placeholders = rows.map(() => '(?, ?, ?, ?, ?)').join(', ')
     const params = rows.flatMap((row) => [
       result.tradeDate,
@@ -143,7 +145,11 @@ export const saveLimitUpRawSnapshot = async (event: H3Event, result: LimitUpResu
     `).bind(...params))
   }
 
-  await db.batch(statements)
+  // Keep the number of statements in a batch bounded as well. This avoids
+  // hitting D1 request limits when the quote provider returns a large list.
+  for (let index = 0; index < statements.length; index += 50) {
+    await db.batch(statements.slice(index, index + 50))
+  }
 
   await db.prepare(`
     DELETE FROM market_limit_up_raw
