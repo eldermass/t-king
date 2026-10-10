@@ -43,15 +43,15 @@ const criteria: Criterion[] = [
   },
   {
     key: 'trend', label: '趋势', hint: '选择当前趋势状态', kind: 'select',
-    options: [{ label: '上升', value: 'up', score: 15 }, { label: '下降转震荡', value: 'downToRange', score: 10 }, { label: '震荡', value: 'range', score: 7 }, { label: '上升转震荡', value: 'upToRange', score: 9 }, { label: '下降', value: 'down', score: 2 }]
+    options: [{ label: '上升', value: 'up', score: 10 }, { label: '下降转震荡', value: 'downToRange', score: 4 }, { label: '震荡', value: 'range', score: 4 }, { label: '上升转震荡', value: 'upToRange', score: 5 }, { label: '下降', value: 'down', score: -2 }]
   },
   {
     key: 'cycle', label: '情绪周期', hint: '选择市场所处阶段', kind: 'select',
-    options: [{ label: '启动', value: 'start', score: 6 }, { label: '发酵', value: 'ferment', score: 10 }, { label: '高潮', value: 'climax', score: 6 }, { label: '分歧', value: 'diverge', score: 2 }, { label: '退潮', value: 'ebb', score: -8 }, { label: '冰点', value: 'freeze', score: 4 }]
+    options: [{ label: '启动', value: 'start', score: 6 }, { label: '发酵', value: 'ferment', score: 10 }, { label: '高潮', value: 'climax', score: 6 }, { label: '分歧', value: 'diverge', score: 2 }, { label: '退潮', value: 'ebb', score: -8 }, { label: '冰点', value: 'freeze', score: 3 }]
   },
   {
     key: 'pattern', label: '形态', hint: '选择市场整体形态', kind: 'select',
-    options: [{ label: '牛市', value: 'bull', score: 10 }, { label: '强势震荡', value: 'strongRange', score: 8 }, { label: '震荡', value: 'range', score: 6 }, { label: '弱势震荡', value: 'weakRange', score: 2 }, { label: '熊市', value: 'bear', score: -4 }]
+    options: [{ label: '牛市', value: 'bull', score: 10 }, { label: '强势震荡', value: 'strongRange', score: 8 }, { label: '震荡', value: 'range', score: 5 }, { label: '弱势震荡', value: 'weakRange', score: 0 }, { label: '熊市', value: 'bear', score: -4 }]
   }
 ]
 
