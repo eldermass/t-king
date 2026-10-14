@@ -460,6 +460,19 @@ input {
 .archive-buy-btn { min-height:28px; padding:5px 9px; }
 .archive-delete-btn { min-width:28px; min-height:28px; padding:4px 7px; }
 .archive-score-modal { width:min(100%, 680px); }
+.stock-rank-trigger { flex:0 0 auto; }
+.stock-rank-modal { width:min(100%, 980px); max-height:min(88vh, 760px); overflow:auto; }
+.stock-rank-note { margin:0 0 14px; color:var(--muted); font-size:.82rem; line-height:1.5; }
+.stock-rank-state { padding:36px 16px; color:var(--muted); text-align:center; font-size:.9rem; }
+.stock-rank-state.is-error { color:var(--accent); }
+.stock-rank-chart-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:rgba(255,250,240,.68); }
+.stock-rank-chart { display:block; max-width:none; font-family:inherit; }
+.stock-rank-grid { stroke:rgba(135,101,42,.2); stroke-width:1; }
+.stock-rank-bar { fill:var(--accent-2); }
+.stock-rank-tick { fill:var(--muted); font-size:11px; }
+.stock-rank-date { fill:var(--muted); font-size:10px; }
+.stock-rank-value { fill:var(--text); font-size:11px; font-weight:700; }
+.stock-rank-axis-title { fill:var(--muted); font-size:12px; font-weight:700; }
 .trade-records-table tfoot th { border-top:2px solid var(--line); background:rgba(255,250,240,.7); }
 @media (max-width:640px) {
   .archive-page { padding-inline:10px; }

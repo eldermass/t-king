@@ -144,6 +144,7 @@ const logout = async () => {
           <span class="archive-stock-score"><i :class="scoreTone(displayedScore(stock, 'quality'))">质 {{ displayedScore(stock, 'quality') ?? '--' }}</i><i :class="scoreTone(displayedScore(stock, 'form'))">形 {{ displayedScore(stock, 'form') ?? '--' }}</i></span>
           <div class="archive-stock-actions" @click.stop>
             <button class="mini-btn archive-buy-btn" type="button" @click="buyPreselected(stock)">买入</button>
+            <StockRankButton :stock-code="stock.code" :stock-name="stock.name" variant="archive" />
             <button class="icon-btn archive-delete-btn" type="button" aria-label="删除预选股票" @click="removePreselectedStock(stock.id)">删</button>
           </div>
         </article>
