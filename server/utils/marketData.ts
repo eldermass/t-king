@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { StockSDK, type SimpleQuote } from 'stock-sdk'
-import { refreshSentimentSnapshot } from './sentiment'
+import { deleteMarketStockQuotes, refreshSentimentSnapshot } from './sentiment'
 
 export type MarketDataRow = {
   tradeDate: string
@@ -86,6 +86,7 @@ export const deleteMarketDataRow = async (event: H3Event, tradeDate: string) => 
   if (!db) throw new Error('D1 database binding is unavailable')
 
   await db.prepare('DELETE FROM market_data_daily WHERE trade_date = ?').bind(tradeDate).run()
+  await deleteMarketStockQuotes(event, tradeDate)
   return { ok: true, tradeDate }
 }
 

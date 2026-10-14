@@ -73,6 +73,14 @@ type MarketStock = {
   amount: number | null
 }
 
+export type MarketStockQuote = {
+  name: string
+  code: string
+  price: number | null
+  changePercent: number | null
+  amount: number | null
+}
+
 const LIMIT_RATE = 9.8
 const MIN_VALID_MARKET_STOCKS = 3000
 let previousSentiment: number | null = null
@@ -123,6 +131,16 @@ const marketStocksFromRows = (rows: Array<Record<string, unknown>>): MarketStock
   changePercent: asNumber(row.changePercent),
   amount: asNumber(row.amount)
 })).filter((stock) => stock.price !== null || stock.changePercent !== null)
+
+const marketStockQuotesFromRows = (rows: Array<Record<string, unknown>>): MarketStockQuote[] => rows
+  .filter((row) => typeof row.code === 'string' && row.code)
+  .map((row) => ({
+    name: typeof row.name === 'string' ? row.name : '',
+    code: row.code as string,
+    price: asNumber(row.price),
+    changePercent: asNumber(row.changePercent),
+    amount: asNumber(row.amount)
+  }))
 
 const calculateSnapshot = (stocks: MarketStock[], limitUpCodes: string[]): SentimentSnapshot => {
   if (stocks.length < MIN_VALID_MARKET_STOCKS) {
@@ -194,6 +212,7 @@ export const refreshSentimentSnapshot = async (event: H3Event): Promise<Sentimen
     await saveLimitUpRawSnapshot(event, limitUp)
     const snapshot = calculateSnapshot(marketStocksFromRows(limitUp.rawRows), limitUp.stocks.map((stock) => stock.code))
     await saveSentimentSnapshot(event, snapshot)
+    await saveMarketStockQuotes(event, snapshot.tradeDate, snapshot.updatedAt, marketStockQuotesFromRows(limitUp.rawRows))
     return snapshot
   })()
   try {
@@ -201,6 +220,35 @@ export const refreshSentimentSnapshot = async (event: H3Event): Promise<Sentimen
   } finally {
     refreshPromise = null
   }
+}
+
+export const saveMarketStockQuotes = async (event: H3Event, tradeDateValue: string, updatedAt: string, quotes: MarketStockQuote[]) => {
+  const db = (event.context.cloudflare?.env as Record<string, unknown> | undefined)?.DB as any
+  if (!db?.prepare) throw new Error('D1 database binding is unavailable')
+  await db.prepare(`
+    INSERT OR REPLACE INTO market_stock_quotes (trade_date, quotes_json, created_at, updated_at)
+    VALUES (?, ?, COALESCE((SELECT created_at FROM market_stock_quotes WHERE trade_date = ?), ?), ?)
+  `).bind(tradeDateValue, JSON.stringify(quotes), tradeDateValue, updatedAt, updatedAt).run()
+}
+
+export const getMarketStockQuotes = async (event: H3Event, tradeDateValue: string) => {
+  const db = (event.context.cloudflare?.env as Record<string, unknown> | undefined)?.DB as any
+  if (!db?.prepare) return [] as MarketStockQuote[]
+  const result = await db.prepare('SELECT quotes_json FROM market_stock_quotes WHERE trade_date = ?').bind(tradeDateValue).all<{ quotes_json: string }>()
+  const raw = result.results?.[0]?.quotes_json
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed as MarketStockQuote[] : []
+  } catch {
+    return []
+  }
+}
+
+export const deleteMarketStockQuotes = async (event: H3Event, tradeDateValue: string) => {
+  const db = (event.context.cloudflare?.env as Record<string, unknown> | undefined)?.DB as any
+  if (!db?.prepare) throw new Error('D1 database binding is unavailable')
+  await db.prepare('DELETE FROM market_stock_quotes WHERE trade_date = ?').bind(tradeDateValue).run()
 }
 
 export const getPreviousSentimentSnapshot = async (event: H3Event) => {

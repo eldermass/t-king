@@ -4,12 +4,16 @@ type MarketRow = {
   volume: number | null; volumeChange: number | null; advancers: number | null; decliners: number | null
   limitUpCount: number | null; limitDownCount: number | null; sentimentScore: number | null; updatedAt: string
 }
+type StockQuote = { name: string; code: string; price: number | null; changePercent: number | null; amount: number | null }
 
 const rows = ref<MarketRow[]>([])
 const loading = ref(true)
 const refreshingDate = ref('')
 const deletingDate = ref('')
 const error = ref('')
+const detailDate = ref('')
+const detailRows = ref<StockQuote[]>([])
+const detailLoading = ref(false)
 const formatPercent = (value: number | null) => value === null ? '--' : `${(value * 100).toFixed(2)}%`
 const formatVolume = (value: number | null) => value === null ? '--' : `${(value / 10000).toFixed(0)} 亿`
 const formatVolumeChange = (value: number | null) => {
@@ -80,6 +84,16 @@ const deleteRow = async (row: MarketRow) => {
     deletingDate.value = ''
   }
 }
+const showDetails = async (row: MarketRow) => {
+  detailDate.value = row.tradeDate
+  detailRows.value = []
+  detailLoading.value = true
+  try { detailRows.value = await $fetch<StockQuote[]>('/api/market/data/details', { query: { tradeDate: row.tradeDate } }) }
+  catch (cause: any) { error.value = cause?.data?.statusMessage || '行情明细读取失败' }
+  finally { detailLoading.value = false }
+}
+const closeDetails = () => { detailDate.value = '' }
+const quoteAmount = (value: number | null) => value === null ? '--' : `${(value / 10000).toFixed(0)} 亿`
 onMounted(load)
 </script>
 
@@ -90,8 +104,9 @@ onMounted(load)
     <section class="market-data-panel">
       <div v-if="loading" class="market-data-empty">正在读取市场数据...</div>
       <div v-else-if="!rows.length" class="market-data-empty">暂无数据库记录，请先打开情绪页面读取行情。</div>
-      <div v-else class="market-data-table-wrap"><table class="market-data-table"><thead><tr><th>日期</th><th>更新时间</th><th>上证指数</th><th>创业板指数</th><th>科创50</th><th>成交量</th><th>成交量变化</th><th>上涨家数</th><th>下跌家数</th><th>涨停数</th><th>跌停数</th><th>情绪评分</th><th>操作</th></tr></thead><tbody><tr v-for="row in visibleRows" :key="row.tradeDate"><td>{{ row.tradeDate }}</td><td><span>{{ formatUpdatedAt(row.updatedAt) }}</span><button v-if="canRefresh(row)" class="market-data-update" type="button" :disabled="Boolean(refreshingDate || deletingDate)" :aria-label="`更新 ${row.tradeDate} 市场数据`" @click="refreshRow(row)"><span aria-hidden="true">↻</span>{{ refreshingDate === row.tradeDate ? '更新中' : '更新' }}</button></td><td :class="changeClass(row.shIndexChange)">{{ formatPercent(row.shIndexChange) }}</td><td :class="changeClass(row.chinextIndexChange)">{{ formatPercent(row.chinextIndexChange) }}</td><td :class="changeClass(row.sci50IndexChange)">{{ formatPercent(row.sci50IndexChange) }}</td><td>{{ formatVolume(row.volume) }}</td><td :class="changeClass(row.volumeChange)">{{ formatVolumeChange(row.volumeChange) }}</td><td :class="advancersClass(row.advancers)">{{ formatNumber(row.advancers) }}</td><td :class="declinersClass(row.decliners)">{{ formatNumber(row.decliners) }}</td><td :class="limitUpClass(row.limitUpCount)">{{ formatNumber(row.limitUpCount) }}</td><td :class="limitDownClass(row.limitDownCount)">{{ formatNumber(row.limitDownCount) }}</td><td><strong class="score-chip" :class="scoreClass(row.sentimentScore)" :title="scoreLabel(row.sentimentScore)">{{ row.sentimentScore === null ? '--' : row.sentimentScore.toFixed(0) }}</strong></td><td><button class="market-data-delete" type="button" :disabled="Boolean(refreshingDate || deletingDate)" :aria-label="`删除 ${row.tradeDate} 市场数据`" @click="deleteRow(row)">删除</button></td></tr></tbody></table></div>
+      <div v-else class="market-data-table-wrap"><table class="market-data-table"><thead><tr><th>日期</th><th>更新时间</th><th>上证指数</th><th>创业板指数</th><th>科创50</th><th>成交量</th><th>成交量变化</th><th>上涨家数</th><th>下跌家数</th><th>涨停数</th><th>跌停数</th><th>情绪评分</th><th>明细</th><th>操作</th></tr></thead><tbody><tr v-for="row in visibleRows" :key="row.tradeDate"><td>{{ row.tradeDate }}</td><td><span>{{ formatUpdatedAt(row.updatedAt) }}</span><button v-if="canRefresh(row)" class="market-data-update" type="button" :disabled="Boolean(refreshingDate || deletingDate)" :aria-label="`更新 ${row.tradeDate} 市场数据`" @click="refreshRow(row)"><span aria-hidden="true">↻</span>{{ refreshingDate === row.tradeDate ? '更新中' : '更新' }}</button></td><td :class="changeClass(row.shIndexChange)">{{ formatPercent(row.shIndexChange) }}</td><td :class="changeClass(row.chinextIndexChange)">{{ formatPercent(row.chinextIndexChange) }}</td><td :class="changeClass(row.sci50IndexChange)">{{ formatPercent(row.sci50IndexChange) }}</td><td>{{ formatVolume(row.volume) }}</td><td :class="changeClass(row.volumeChange)">{{ formatVolumeChange(row.volumeChange) }}</td><td :class="advancersClass(row.advancers)">{{ formatNumber(row.advancers) }}</td><td :class="declinersClass(row.decliners)">{{ formatNumber(row.decliners) }}</td><td :class="limitUpClass(row.limitUpCount)">{{ formatNumber(row.limitUpCount) }}</td><td :class="limitDownClass(row.limitDownCount)">{{ formatNumber(row.limitDownCount) }}</td><td><strong class="score-chip" :class="scoreClass(row.sentimentScore)" :title="scoreLabel(row.sentimentScore)">{{ row.sentimentScore === null ? '--' : row.sentimentScore.toFixed(0) }}</strong></td><td><button class="market-data-detail" type="button" @click="showDetails(row)">查看</button></td><td><button class="market-data-delete" type="button" :disabled="Boolean(refreshingDate || deletingDate)" :aria-label="`删除 ${row.tradeDate} 市场数据`" @click="deleteRow(row)">删除</button></td></tr></tbody></table></div>
       <div v-if="!loading && rows.length" class="market-data-pagination"><button type="button" :disabled="currentPage === 1" @click="setPage(currentPage - 1)">上一页</button><span>第 {{ currentPage }} / {{ pageCount }} 页，共 {{ rows.length }} 条</span><button type="button" :disabled="currentPage === pageCount" @click="setPage(currentPage + 1)">下一页</button></div>
     </section>
+    <div v-if="detailDate" class="market-detail-overlay" role="presentation" @click.self="closeDetails"><section class="market-detail-modal" role="dialog" aria-modal="true" :aria-label="`${detailDate} 股票行情明细`"><header><div><p class="sentiment-eyebrow">STOCK QUOTES</p><h2>{{ detailDate }} 行情明细</h2></div><button class="ghost-btn" type="button" aria-label="关闭行情明细" @click="closeDetails">关闭</button></header><div v-if="detailLoading" class="market-data-empty">正在读取行情明细...</div><div v-else-if="!detailRows.length" class="market-data-empty">暂无行情明细</div><div v-else class="market-detail-table-wrap"><table class="market-detail-table"><thead><tr><th>股票名</th><th>股票代码</th><th>最新价</th><th>涨跌幅</th><th>成交额</th></tr></thead><tbody><tr v-for="quote in detailRows" :key="quote.code"><td>{{ quote.name || '--' }}</td><td>{{ quote.code }}</td><td>{{ quote.price === null ? '--' : quote.price.toFixed(2) }}</td><td :class="changeClass(quote.changePercent === null ? null : quote.changePercent / 100)">{{ quote.changePercent === null ? '--' : `${quote.changePercent.toFixed(2)}%` }}</td><td>{{ quoteAmount(quote.amount) }}</td></tr></tbody></table></div></section></div>
   </main>
 </template>
