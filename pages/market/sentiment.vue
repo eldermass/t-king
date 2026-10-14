@@ -20,6 +20,7 @@ type HistoryItem = Pick<Sentiment, 'tradeDate' | 'marketSentiment' | 'profitScor
 type Tone = '' | 'is-strong' | 'is-good' | 'is-neutral' | 'is-weak' | 'is-poor'
 type DetailItem = { label: string; value: string; tone: Tone }
 type MarketStock = { changePercent: number; amount: number }
+type MarketStockQuote = { name: string; code: string; price: number | null; changePercent: number | null; amount: number | null }
 type PreviousLimitUpPerformance = {
   averageReturn: number | null
   medianReturn: number | null
@@ -60,6 +61,7 @@ const data = ref<Sentiment>(emptySentiment())
 const history = ref<HistoryItem[]>([])
 const loading = ref(true)
 const refreshing = ref(false)
+const savedQuoteCount = ref<number | null>(null)
 const scoreLoading = computed(() => loading.value || refreshing.value)
 const loadError = ref('')
 const metricDefinitions: Array<{ key: MetricKey; label: string; note: string }> = [
@@ -134,6 +136,16 @@ const tradeDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shang
 const asHistory = (snapshot: Sentiment): HistoryItem => ({ tradeDate: snapshot.tradeDate, marketSentiment: snapshot.marketSentiment, profitScore: snapshot.profitScore, speculationScore: snapshot.speculationScore, breadthScore: snapshot.breadthScore, riskScore: snapshot.riskScore, phase: snapshot.phase, momentum: snapshot.momentum, totalAmount: snapshot.market.totalAmount })
 
 const median = (values: number[]) => values.length ? [...values].sort((left, right) => left - right)[Math.floor(values.length / 2)] : null
+const finiteNumber = (value: number) => Number.isFinite(value) ? value : null
+const marketStockQuotes = (quotes: FullQuote[]): MarketStockQuote[] => [...new Map(quotes
+  .filter((quote) => quote.code)
+  .map((quote) => [quote.code, {
+    name: quote.name || '',
+    code: quote.code,
+    price: finiteNumber(quote.price),
+    changePercent: finiteNumber(quote.changePercent),
+    amount: finiteNumber(quote.amount)
+  }] as const)).values()]
 const calculatePreviousLimitUpPerformance = (pool: ZTPoolItem[], quotes: SimpleQuote[]): PreviousLimitUpPerformance => {
   const quoteByCode = new Map(quotes.map((quote) => [quote.code, quote]))
   const returns = pool.map((item) => quoteByCode.get(item.code)?.changePercent).filter((value): value is number => Number.isFinite(value))
@@ -195,6 +207,7 @@ const calculateSnapshot = (quotes: FullQuote[], limitUps: ZTPoolItem[], limitDow
 const load = async (initial = false) => {
   if (initial) loading.value = true
   else refreshing.value = true
+  savedQuoteCount.value = null
   loadError.value = ''
   try {
     let readError = ''
@@ -220,13 +233,19 @@ const load = async (initial = false) => {
     // discard a valid live snapshot when D1 is temporarily unavailable.
     data.value = snapshot
     history.value = [asHistory(snapshot), ...history.value.filter((item) => item.tradeDate !== snapshot.tradeDate)].slice(0, 60)
-    const persistenceTasks: Promise<unknown>[] = [$fetch('/api/market/sentiment', { method: 'POST', body: snapshot })]
+    const persistenceTasks: Promise<unknown>[] = [$fetch('/api/market/sentiment', {
+      method: 'POST', body: { ...snapshot, quotes: marketStockQuotes(quotes) }
+    })]
     try {
       persistenceTasks.push($fetch('/api/market/data', { method: 'POST', body: marketDataFromSnapshot(snapshot, indexQuotes) }))
     } catch (error) {
       loadError.value = error instanceof Error ? error.message : '指数行情暂不可用，情绪数据已更新'
     }
     const persistence = await Promise.allSettled(persistenceTasks)
+    const quoteSave = persistence[0]
+    if (quoteSave?.status === 'fulfilled') {
+      savedQuoteCount.value = (quoteSave.value as { quoteCount: number }).quoteCount
+    }
     const failed = persistence.find((result): result is PromiseRejectedResult => result.status === 'rejected')
     if (failed && !loadError.value) {
       const reason = failed.reason
@@ -245,8 +264,8 @@ onMounted(() => load(true))
 
 <template>
   <main class="page-shell sentiment-page">
-    <section class="topbar sentiment-topbar"><div><p class="sentiment-eyebrow">MARKET STATUS</p><h1>A股市场情绪</h1></div><div class="topbar-actions"><span class="market-tip">实时行情</span><button class="refresh-btn" type="button" :disabled="loading || refreshing" @click="refresh"><span aria-hidden="true">↻</span>{{ refreshing ? '读取中' : '刷新行情' }}</button><span class="market-tip" :class="{ 'is-busy': refreshing }">{{ refreshing ? '正在读取 stock-sdk' : data.updatedAt ? `更新于 ${new Date(data.updatedAt).toLocaleTimeString('zh-CN', { hour12: false })}` : '等待数据' }}</span><PageSwitcher /><button class="ghost-btn" type="button" @click="logout">退出</button></div></section>
-    <p v-if="loadError" class="sentiment-alert">{{ loadError }}，保留最近一次成功数据</p>
+    <section class="topbar sentiment-topbar"><div><p class="sentiment-eyebrow">MARKET STATUS</p><h1>A股市场情绪</h1></div><div class="topbar-actions"><span class="market-tip">实时行情</span><button class="refresh-btn" type="button" :disabled="loading || refreshing" @click="refresh"><span aria-hidden="true">↻</span>{{ refreshing ? '读取中' : '刷新行情' }}</button><span class="market-tip" :class="{ 'is-busy': refreshing }">{{ refreshing ? '正在读取 stock-sdk' : data.updatedAt ? `更新于 ${new Date(data.updatedAt).toLocaleTimeString('zh-CN', { hour12: false })}` : '等待数据' }}</span><span v-if="savedQuoteCount !== null" class="market-tip">已保存 {{ savedQuoteCount }} 只行情</span><PageSwitcher /><button class="ghost-btn" type="button" @click="logout">退出</button></div></section>
+    <p v-if="loadError" class="sentiment-alert">{{ loadError }}</p>
     <section class="sentiment-card-grid">
       <article class="sentiment-panel overview-card"><header class="panel-heading"><div><span class="section-label">SENTIMENT OVERVIEW</span><h2>综合情绪与历史评分</h2></div><span class="panel-date">{{ data.tradeDate }}</span></header><div class="overview-main"><div class="sentiment-score-line"><span v-if="scoreLoading" class="sentiment-score-spinner" role="status" aria-label="综合分加载中"></span><template v-else><strong :class="scoreTone(data.marketSentiment)">{{ scoreText(data.marketSentiment) }}</strong><span>/ 100</span></template></div><div class="sentiment-phase"><i></i>{{ phaseLabel }}</div><p>情绪变化 <strong :class="momentumTone">{{ data.momentum === null ? '--' : `${data.momentum >= 0 ? '↑' : '↓'} ${momentumText}` }}</strong></p></div><div v-if="history.length" class="history-chart"><div v-for="item in history.slice().reverse()" :key="`${item.tradeDate}-${item.marketSentiment}`" class="history-bar" :title="`${item.tradeDate} ${scoreText(item.marketSentiment)}`"><i :class="historyTone(item.marketSentiment)" :style="{ height: `${item.marketSentiment ?? 0}%`, backgroundColor: historyBarColor(item.marketSentiment) }"></i></div></div><p v-else class="empty-state">暂无历史评分</p><div class="history-latest"><span>{{ modeLabel }}</span><span>交易日 {{ data.tradeDate }}</span><span>最高 {{ scoreText(historyHigh) }}</span></div></article>
       <article v-for="metric in metricDefinitions" :key="metric.key" class="sentiment-panel metric-detail-card" :class="scoreTone(data[metric.key], metric.key === 'riskScore')"><header class="panel-heading"><div><span class="section-label">{{ metric.key.replace('Score', '').toUpperCase() }}</span><h2>{{ metric.label }}</h2></div><strong class="detail-score" :class="scoreTone(data[metric.key], metric.key === 'riskScore')">{{ scoreText(data[metric.key]) }}</strong></header><div class="metric-track"><i :style="{ width: metricWidth(data[metric.key]) }"></i></div><p class="metric-note">{{ metric.note }}</p><div class="detail-grid"><div v-for="item in metricDetails(metric.key)" :key="item.label"><span>{{ item.label }}</span><strong :class="item.tone">{{ item.value }}</strong></div></div></article>

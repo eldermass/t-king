@@ -1,15 +1,26 @@
 import { readBody } from 'h3'
 import { requireUser } from '~/server/utils/auth'
-import { saveSentimentSnapshot, type SentimentSnapshot } from '~/server/utils/sentiment'
+import { saveMarketStockQuotes, saveSentimentSnapshot, type MarketStockQuote, type SentimentSnapshot } from '~/server/utils/sentiment'
 
 const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object'
 
 export default defineEventHandler(async (event) => {
   await requireUser(event)
-  const body = await readBody<Partial<SentimentSnapshot>>(event)
+  const body = await readBody<Partial<SentimentSnapshot> & { quotes?: MarketStockQuote[] }>(event)
 
-  if (!body?.tradeDate || !body.updatedAt || !isRecord(body.market)) {
+  if (!body?.tradeDate || !body.updatedAt || !isRecord(body.market) || !Array.isArray(body.quotes) || body.quotes.length < 3000) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid sentiment snapshot' })
+  }
+
+  const quotes = body.quotes.map((quote) => ({
+    name: typeof quote.name === 'string' ? quote.name : '',
+    code: typeof quote.code === 'string' ? quote.code : '',
+    price: typeof quote.price === 'number' && Number.isFinite(quote.price) ? quote.price : null,
+    changePercent: typeof quote.changePercent === 'number' && Number.isFinite(quote.changePercent) ? quote.changePercent : null,
+    amount: typeof quote.amount === 'number' && Number.isFinite(quote.amount) ? quote.amount : null
+  })).filter((quote) => quote.code)
+  if (quotes.length < 3000) {
+    throw createError({ statusCode: 400, statusMessage: 'Insufficient stock quotes' })
   }
 
   const market = body.market as SentimentSnapshot['market']
@@ -34,5 +45,6 @@ export default defineEventHandler(async (event) => {
   }
 
   await saveSentimentSnapshot(event, snapshot)
-  return { tradeDate: snapshot.tradeDate, updatedAt: snapshot.updatedAt }
+  await saveMarketStockQuotes(event, snapshot.tradeDate, snapshot.updatedAt, quotes)
+  return { tradeDate: snapshot.tradeDate, updatedAt: snapshot.updatedAt, quoteCount: quotes.length }
 })
