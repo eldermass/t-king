@@ -8,6 +8,7 @@ type RankPoint = {
   changePercent: number | null
 }
 type RankResponse = { code: string; maxStocks: number; points: RankPoint[] }
+type RefreshResponse = { tradeDate: string; updatedAt: string; quoteCount: number }
 
 const props = withDefaults(defineProps<{
   stockCode: string
@@ -17,7 +18,10 @@ const props = withDefaults(defineProps<{
 
 const open = ref(false)
 const loading = ref(false)
+const refreshing = ref(false)
 const error = ref('')
+const refreshMessage = ref('')
+const refreshFailed = ref(false)
 const points = ref<RankPoint[]>([])
 const maxStocks = ref(0)
 const trigger = ref<HTMLButtonElement | null>(null)
@@ -54,6 +58,7 @@ const hasRank = computed(() => points.value.some((point) => point.rank !== null)
 const close = async () => {
   requestId += 1
   open.value = false
+  refreshing.value = false
   await nextTick()
   trigger.value?.focus()
 }
@@ -62,6 +67,8 @@ const show = async () => {
   open.value = true
   loading.value = true
   error.value = ''
+  refreshMessage.value = ''
+  refreshFailed.value = false
   points.value = []
   maxStocks.value = 0
   const currentRequest = ++requestId
@@ -87,6 +94,36 @@ const show = async () => {
     if (currentRequest === requestId) loading.value = false
   }
 }
+
+const refreshQuotes = async () => {
+  if (loading.value || refreshing.value) return
+  const code = normalizeCode(props.stockCode)
+  if (!/^\d{6}$/.test(code)) return
+
+  const currentRequest = ++requestId
+  refreshing.value = true
+  refreshMessage.value = '正在重新获取并保存全市场行情...'
+  refreshFailed.value = false
+  let saved: RefreshResponse | null = null
+
+  try {
+    saved = await $fetch<RefreshResponse>('/api/market/rank/refresh', { method: 'POST' })
+    if (currentRequest !== requestId) return
+    const result = await $fetch<RankResponse>('/api/market/rank', { query: { code } })
+    if (currentRequest !== requestId) return
+    points.value = result.points
+    maxStocks.value = result.maxStocks
+    error.value = ''
+    refreshMessage.value = `${saved.tradeDate} 已保存 ${saved.quoteCount.toLocaleString('zh-CN')} 只股票行情，次序已更新`
+  } catch (cause: any) {
+    if (currentRequest !== requestId) return
+    const message = cause?.data?.statusMessage || cause?.statusMessage || '行情刷新失败'
+    refreshMessage.value = saved ? `行情已保存，但次序读取失败：${message}` : message
+    refreshFailed.value = true
+  } finally {
+    if (currentRequest === requestId) refreshing.value = false
+  }
+}
 </script>
 
 <template>
@@ -96,8 +133,12 @@ const show = async () => {
       <section ref="dialog" class="settings-modal stock-rank-modal" role="dialog" aria-modal="true" :aria-label="`${stockName || stockCode || '当前股票'} 的次序`" tabindex="-1" @keydown.esc="close">
         <header class="settings-modal-head">
           <div><h2>涨跌幅次序</h2><p>{{ stockName || '当前股票' }} · {{ normalizeCode(stockCode) || '--' }} · 最近 20 个已保存交易日</p></div>
-          <button class="ghost-btn" type="button" @click="close">关闭</button>
+          <div class="stock-rank-head-actions">
+            <button class="ghost-btn" type="button" :disabled="loading || refreshing || !/^\d{6}$/.test(normalizeCode(stockCode))" @click="refreshQuotes">{{ refreshing ? '刷新中...' : '刷新行情' }}</button>
+            <button class="ghost-btn" type="button" @click="close">关闭</button>
+          </div>
         </header>
+        <p v-if="refreshMessage" class="stock-rank-refresh-message" :class="{ 'is-error': refreshFailed }" role="status">{{ refreshMessage }}</p>
         <p v-if="loading" class="stock-rank-state">正在计算次序...</p>
         <p v-else-if="error" class="stock-rank-state is-error">{{ error }}</p>
         <p v-else-if="!points.length" class="stock-rank-state">暂无已保存的每日股票行情，请先在情绪页完成一次行情保存。</p>

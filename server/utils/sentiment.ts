@@ -226,9 +226,13 @@ export const saveMarketStockQuotes = async (event: H3Event, tradeDateValue: stri
   const db = (event.context.cloudflare?.env as Record<string, unknown> | undefined)?.DB as any
   if (!db?.prepare) throw new Error('D1 database binding is unavailable')
   await db.prepare(`
-    INSERT OR REPLACE INTO market_stock_quotes (trade_date, quotes_json, created_at, updated_at)
-    VALUES (?, ?, COALESCE((SELECT created_at FROM market_stock_quotes WHERE trade_date = ?), ?), ?)
-  `).bind(tradeDateValue, JSON.stringify(quotes), tradeDateValue, updatedAt, updatedAt).run()
+    INSERT INTO market_stock_quotes (trade_date, quotes_json, created_at, updated_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(trade_date) DO UPDATE SET
+      quotes_json = excluded.quotes_json,
+      updated_at = excluded.updated_at
+    WHERE excluded.updated_at >= market_stock_quotes.updated_at
+  `).bind(tradeDateValue, JSON.stringify(quotes), updatedAt, updatedAt).run()
 }
 
 export const getMarketStockQuotes = async (event: H3Event, tradeDateValue: string) => {

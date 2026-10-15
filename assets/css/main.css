@@ -462,6 +462,11 @@ input {
 .archive-score-modal { width:min(100%, 680px); }
 .stock-rank-trigger { flex:0 0 auto; }
 .stock-rank-modal { width:min(100%, 980px); max-height:min(88vh, 760px); overflow:auto; }
+.stock-rank-modal .settings-modal-head { flex-wrap:wrap; }
+.stock-rank-head-actions { display:flex; align-items:center; gap:8px; margin-left:auto; }
+.stock-rank-head-actions .ghost-btn:disabled { cursor:wait; opacity:.55; }
+.stock-rank-refresh-message { margin:0 0 12px; color:var(--accent-2); font-size:.82rem; }
+.stock-rank-refresh-message.is-error { color:var(--accent); }
 .stock-rank-note { margin:0 0 14px; color:var(--muted); font-size:.82rem; line-height:1.5; }
 .stock-rank-state { padding:36px 16px; color:var(--muted); text-align:center; font-size:.9rem; }
 .stock-rank-state.is-error { color:var(--accent); }
