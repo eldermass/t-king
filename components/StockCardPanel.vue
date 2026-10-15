@@ -232,9 +232,25 @@ const tradeRecordGroupProfit = (group: TradeRecordGroup) => {
   if (profits.every((value) => value === null)) return null
   return profits.reduce((total, value) => total + (value ?? 0), 0)
 }
+const formatTradeFee = (value: number | null) => value === null ? '--' : value.toFixed(2)
+const tradeRecordGroupFee = (group: TradeRecordGroup) => {
+  const sells = [group.opening, ...group.operations].filter((record) => record.type === 'sell')
+  if (!sells.length) return null
+
+  return sells.reduce((total, record) => {
+    const sellAmount = record.price * record.lots * 100
+    const commission = sellAmount > 10000 ? sellAmount * 1.5 / 10000 : 5
+    const fee = commission * 2 + sellAmount * 5 / 10000
+    return total + Math.round(fee * 100) / 100
+  }, 0)
+}
 const tradeRecordTotalProfit = computed(() => {
   const profits = tradeRecordGroups.value.map((group) => tradeRecordGroupProfit(group)).filter((value): value is number => value !== null)
   return profits.length ? profits.reduce((total, value) => total + value, 0) : null
+})
+const tradeRecordTotalFee = computed(() => {
+  const fees = tradeRecordGroups.value.map((group) => tradeRecordGroupFee(group)).filter((value): value is number => value !== null)
+  return fees.length ? fees.reduce((total, value) => total + value, 0) : null
 })
 
 const tradeModal = ref<'buy' | 'offset' | 'close' | 'discard' | null>(null)
@@ -862,7 +878,7 @@ const submitTrade = () => {
   </div>
 
   <div v-if="recordsOpen" class="settings-modal-overlay" @click.self="closeRecords">
-    <section class="settings-modal trade-records-modal" role="dialog" aria-modal="true" aria-labelledby="trade-records-title">
+    <section class="settings-modal trade-records-modal stock-trade-records-modal" role="dialog" aria-modal="true" aria-labelledby="trade-records-title">
       <header class="settings-modal-head">
         <div>
           <h2 id="trade-records-title">交易记录</h2>
@@ -879,11 +895,12 @@ const submitTrade = () => {
               <th>开仓</th>
               <th>后续操作</th>
               <th>累计盈亏</th>
+              <th>交易费用</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="!tradeRecordGroups.length">
-              <td colspan="4">暂无交易记录</td>
+              <td colspan="5">暂无交易记录</td>
             </tr>
             <tr v-for="group in tradeRecordGroups" :key="group.id">
               <td>{{ group.opening.tradeDate }}</td>
@@ -910,16 +927,9 @@ const submitTrade = () => {
               <td :class="['trade-record-profit', tradeRecordProfitTone(tradeRecordGroupProfit(group))]">
                 {{ formatAmount(tradeRecordGroupProfit(group)) }}
               </td>
+              <td>{{ formatTradeFee(tradeRecordGroupFee(group)) }}</td>
             </tr>
           </tbody>
-          <tfoot>
-            <tr>
-              <th colspan="3">总盈亏</th>
-              <th :class="['trade-record-profit', tradeRecordProfitTone(tradeRecordTotalProfit)]">
-                {{ formatAmount(tradeRecordTotalProfit) }}
-              </th>
-            </tr>
-          </tfoot>
         </table>
 
         <table v-if="false" class="trade-records-table">
@@ -954,6 +964,10 @@ const submitTrade = () => {
           </tbody>
         </table>
       </div>
+      <footer class="trade-records-summary" aria-label="交易记录汇总">
+        <span>总盈亏 <strong :class="['trade-record-profit', tradeRecordProfitTone(tradeRecordTotalProfit)]">{{ formatAmount(tradeRecordTotalProfit) }}</strong></span>
+        <span>总交易费用 <strong>{{ formatTradeFee(tradeRecordTotalFee) }}</strong></span>
+      </footer>
     </section>
   </div>
 

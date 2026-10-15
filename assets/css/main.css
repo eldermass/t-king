@@ -722,6 +722,52 @@ input {
   overflow: auto;
 }
 
+.stock-trade-records-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 900px);
+  max-height: min(760px, calc(100dvh - 40px));
+}
+
+.stock-trade-records-modal .trade-records-table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.stock-trade-records-modal .settings-modal-head {
+  flex: 0 0 auto;
+}
+
+.stock-trade-records-modal .trade-records-grouped-table {
+  min-width: 800px;
+}
+
+.stock-trade-records-modal .trade-records-grouped-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel-strong);
+}
+
+.trade-records-summary {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 24px;
+  padding: 14px 7px 0;
+  border-top: 1px solid var(--line);
+  font-size: .9rem;
+  color: var(--muted);
+}
+
+.trade-records-summary strong {
+  margin-left: 6px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
 .trade-records-table {
   min-width: 620px;
   width: 100%;
