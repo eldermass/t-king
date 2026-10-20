@@ -441,6 +441,7 @@ const submitTrade = () => {
             />
           </div>
           <div class="card-trade-actions">
+            <StockIndicatorButton :stock-code="stock.code" :stock-name="stock.name" />
             <StockRankButton :stock-code="stock.code" :stock-name="stock.name" />
             <button class="delete-stock-btn" type="button" @click="onDeleteStock">删除</button>
             <button class="ghost-btn" type="button" @click="openClose">
@@ -470,6 +471,7 @@ const submitTrade = () => {
             placeholder="股票代码"
           />
           <div class="card-trade-actions">
+            <StockIndicatorButton :stock-code="stock.code" :stock-name="stock.name" />
             <StockRankButton :stock-code="stock.code" :stock-name="stock.name" />
             <button class="delete-stock-btn" type="button" @click="onDeleteStock">删除</button>
             <button class="ghost-btn" type="button" @click="openClose">
