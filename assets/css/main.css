@@ -2152,6 +2152,11 @@ td input:focus {
 
 .price-ruler-dot.is-buy {
   background: var(--accent);
+  transform: translate(-50%, -50%) scale(var(--point-scale, 1));
+}
+
+.price-ruler-dot.is-buy.is-negative {
+  background: #2f7ddf;
 }
 
 .price-ruler-dot.is-average {

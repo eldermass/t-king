@@ -5,8 +5,15 @@ type RulerPoint = {
   price: number
   position: number
   lane: 0 | 1
+  scale: number
+  isNegative: boolean
   lotsText: string
   dateText: string
+}
+type BuyLotsRange = {
+  min: number
+  median: number
+  max: number
 }
 type RulerPlanPoint = {
   id: string
@@ -71,6 +78,42 @@ const stockLabel = (stock: StockCard) => stock.name.trim() || stock.code.trim() 
 const isValidPrice = (value: number | null | undefined): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value > 0
 const clampPercent = (value: number) => Math.min(100, Math.max(0, value))
+const buyLotsRange = computed<BuyLotsRange | null>(() => {
+  const lots = stocks.value
+    .flatMap((stock) => stock.buyEntries
+      .filter((entry) => isValidPrice(entry.buyPrice))
+      .map((entry) => entry.lots))
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value !== 0)
+    .map((value) => Math.abs(value))
+    .sort((left, right) => left - right)
+
+  if (!lots.length) {
+    return null
+  }
+
+  const middle = Math.floor(lots.length / 2)
+  return {
+    min: lots[0],
+    median: lots.length % 2 === 0 ? (lots[middle - 1] + lots[middle]) / 2 : lots[middle],
+    max: lots[lots.length - 1]
+  }
+})
+const buyPointScale = (lots: number | null, range: BuyLotsRange | null) => {
+  if (!range || typeof lots !== 'number' || !Number.isFinite(lots) || lots === 0) {
+    return 1
+  }
+
+  const magnitude = Math.abs(lots)
+  if (magnitude === range.median) {
+    return 1
+  }
+
+  // Equal ratios get equal steps: 10, 20, 40 lots map to 1, 1.25, 1.5.
+  const scale = magnitude > range.median
+    ? 1 + 0.5 * Math.log(magnitude / range.median) / Math.log(range.max / range.median)
+    : 1 - 0.5 * Math.log(range.median / magnitude) / Math.log(range.median / range.min)
+  return Math.min(1.5, Math.max(0.5, scale))
+}
 const formatBuyDate = (value: string) => {
   const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/)
   if (!match) {
@@ -88,7 +131,7 @@ const formatEntryMeta = (entry: BuyEntry) => {
   }
   return parts.join(' · ')
 }
-const buildRulerModel = (stock: StockCard): RulerModel | null => {
+const buildRulerModel = (stock: StockCard, lotsRange: BuyLotsRange | null): RulerModel | null => {
   const entries = stock.buyEntries
     .filter((entry) => isValidPrice(entry.buyPrice))
     .slice()
@@ -149,7 +192,9 @@ const buildRulerModel = (stock: StockCard): RulerModel | null => {
     price: entry.buyPrice as number,
     position: project(entry.buyPrice as number),
     lane: (index % 2) as 0 | 1,
-    lotsText: entry.lots && entry.lots > 0 ? `${entry.lots}手` : '0手',
+    scale: buyPointScale(entry.lots, lotsRange),
+    isNegative: typeof entry.lots === 'number' && entry.lots < 0,
+    lotsText: typeof entry.lots === 'number' && Number.isFinite(entry.lots) ? `${entry.lots}手` : '0手',
     dateText: entry.buyDate ? formatBuyDate(entry.buyDate) : '--'
   }))
   const gaps: RulerGap[] = []
@@ -178,7 +223,7 @@ const buildRulerModel = (stock: StockCard): RulerModel | null => {
 }
 const stockRulers = computed(() =>
   stocks.value.map((stock) => {
-    const model = buildRulerModel(stock)
+    const model = buildRulerModel(stock, buyLotsRange.value)
     const quote = quoteFor(stock.code)
     const quoteText = quote.price === null ? '价格不存在' : `${formatPrice(quote.price)} ${formatPercent(quote.changePercent)}`
     const currentPricePosition = model && isValidPrice(quote.price)
@@ -297,11 +342,11 @@ const logout = async () => {
                 :class="`is-lane-${point.lane}`"
                 :style="{ left: `${point.position}%`, '--lane-offset': `${point.lane * 44}px` }"
               >
-                <span class="price-ruler-dot is-buy"></span>
+                <span class="price-ruler-dot is-buy" :class="{ 'is-negative': point.isNegative }" :style="{ '--point-scale': point.scale }"></span>
                 <div class="price-ruler-point-label">
                   <strong>{{ formatPrice(point.price) }}</strong>
                   <!-- <span>{{ point.lotsText }}</span> -->
-                  <small>{{ point.dateText }} {{ point.lotsText }}</small>
+                  <small>{{ point.lotsText }}</small>
                 </div>
               </div>
             </div>
