@@ -246,6 +246,17 @@ input {
   font-size: 0.98rem;
 }
 
+.rate-risk-confirm-btn {
+  min-width: 116px;
+}
+
+.rate-risk-confirm-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .ghost-btn,
 .mini-btn,
 .icon-btn,
@@ -280,6 +291,10 @@ input {
 .icon-btn:hover,
 .ghost-link:hover {
   transform: translateY(-1px);
+}
+
+.rate-risk-confirm-btn:disabled:hover {
+  transform: none;
 }
 
 .ghost-btn:disabled,

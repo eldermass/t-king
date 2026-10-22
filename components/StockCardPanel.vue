@@ -175,16 +175,38 @@ const rateEntry = ref<BuyEntry | null>(null)
 const rateDraft = ref('')
 const rateError = ref('')
 const pendingRate = ref<number | null>(null)
+const riskSecondsRemaining = ref(10)
+let riskCountdownTimer: ReturnType<typeof setInterval> | null = null
+const closeRiskConfirm = () => {
+  if (riskCountdownTimer) {
+    clearInterval(riskCountdownTimer)
+    riskCountdownTimer = null
+  }
+  pendingRate.value = null
+  riskSecondsRemaining.value = 10
+}
+const startRiskCountdown = () => {
+  closeRiskConfirm()
+  riskSecondsRemaining.value = 10
+  const unlockAt = Date.now() + 10_000
+  riskCountdownTimer = setInterval(() => {
+    riskSecondsRemaining.value = Math.max(0, Math.ceil((unlockAt - Date.now()) / 1000))
+    if (riskSecondsRemaining.value === 0 && riskCountdownTimer) {
+      clearInterval(riskCountdownTimer)
+      riskCountdownTimer = null
+    }
+  }, 250)
+}
 const openRate = (entry: BuyEntry) => {
   rateEntry.value = entry
   rateDraft.value = String(Number((entry.targetRate + 4).toFixed(10)))
   rateError.value = ''
-  pendingRate.value = null
+  closeRiskConfirm()
 }
 const closeRate = () => {
   rateEntry.value = null
   rateError.value = ''
-  pendingRate.value = null
+  closeRiskConfirm()
 }
 const confirmRate = () => {
   const value = String(rateDraft.value).trim()
@@ -201,14 +223,15 @@ const confirmRate = () => {
     return
   }
 
+  startRiskCountdown()
   pendingRate.value = nextRate
 }
 const applyRate = () => {
-  if (!rateEntry.value || pendingRate.value === null) return
+  if (!rateEntry.value || pendingRate.value === null || riskSecondsRemaining.value > 0) return
 
   const entry = props.stock.buyEntries.find((item) => item.id === rateEntry.value?.id)
   if (!entry) {
-    pendingRate.value = null
+    closeRiskConfirm()
     rateError.value = '该买入记录已不存在。'
     return
   }
@@ -216,6 +239,9 @@ const applyRate = () => {
   entry.targetRate = pendingRate.value
   closeRate()
 }
+onBeforeUnmount(() => {
+  if (riskCountdownTimer) clearInterval(riskCountdownTimer)
+})
 
 const recordsOpen = ref(false)
 const closeRecords = () => { recordsOpen.value = false }
@@ -903,14 +929,16 @@ const submitTrade = () => {
     </section>
   </div>
 
-  <div v-if="rateEntry && pendingRate !== null" class="settings-modal-overlay" @click.self="pendingRate = null">
+  <div v-if="rateEntry && pendingRate !== null" class="settings-modal-overlay" @click.self="closeRiskConfirm">
     <section class="settings-modal trade-modal" role="alertdialog" aria-modal="true" aria-labelledby="rate-risk-title">
       <header class="settings-modal-head">
         <h2 id="rate-risk-title">是否已经充分思考并意识到风险？</h2>
       </header>
       <div class="settings-modal-actions">
-        <button class="ghost-btn" type="button" @click="pendingRate = null">取消</button>
-        <button class="primary-btn" type="button" @click="applyRate">确认</button>
+        <button class="ghost-btn" type="button" @click="closeRiskConfirm">取消</button>
+        <button class="primary-btn rate-risk-confirm-btn" type="button" :disabled="riskSecondsRemaining > 0" @click="applyRate">
+          {{ riskSecondsRemaining > 0 ? `确认（${riskSecondsRemaining}秒）` : '确认' }}
+        </button>
       </div>
     </section>
   </div>
