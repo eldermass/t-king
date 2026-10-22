@@ -731,6 +731,32 @@ input {
   width: min(100%, 420px);
 }
 
+.rate-modal {
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+}
+
+.rate-guide {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+}
+
+.rate-guide strong {
+  font-size: 0.88rem;
+}
+
+.rate-guide p {
+  margin: 8px 0 0;
+  color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .record-btn {
   padding-inline: 12px;
 }
@@ -1316,6 +1342,23 @@ td input:focus {
 .entry-readonly {
   display: inline-block;
   font-variant-numeric: tabular-nums;
+}
+
+.rate-change-btn {
+  border: 0;
+  padding: 7px 4px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.rate-change-btn:hover,
+.rate-change-btn:focus-visible {
+  text-decoration: underline;
+  outline-offset: 2px;
 }
 
 .trade-action-btn {

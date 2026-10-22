@@ -171,6 +171,52 @@ const saveScore = () => {
 
 const closeScore = () => { scoreOpen.value = false }
 
+const rateEntry = ref<BuyEntry | null>(null)
+const rateDraft = ref('')
+const rateError = ref('')
+const pendingRate = ref<number | null>(null)
+const openRate = (entry: BuyEntry) => {
+  rateEntry.value = entry
+  rateDraft.value = String(Number((entry.targetRate + 4).toFixed(10)))
+  rateError.value = ''
+  pendingRate.value = null
+}
+const closeRate = () => {
+  rateEntry.value = null
+  rateError.value = ''
+  pendingRate.value = null
+}
+const confirmRate = () => {
+  const value = String(rateDraft.value).trim()
+  const nextRate = Number(value)
+
+  if (!rateEntry.value || !value || !Number.isFinite(nextRate)) {
+    rateError.value = '请输入有效的涨幅。'
+    return
+  }
+
+  const entry = props.stock.buyEntries.find((item) => item.id === rateEntry.value?.id)
+  if (!entry) {
+    rateError.value = '该买入记录已不存在。'
+    return
+  }
+
+  pendingRate.value = nextRate
+}
+const applyRate = () => {
+  if (!rateEntry.value || pendingRate.value === null) return
+
+  const entry = props.stock.buyEntries.find((item) => item.id === rateEntry.value?.id)
+  if (!entry) {
+    pendingRate.value = null
+    rateError.value = '该买入记录已不存在。'
+    return
+  }
+
+  entry.targetRate = pendingRate.value
+  closeRate()
+}
+
 const recordsOpen = ref(false)
 const closeRecords = () => { recordsOpen.value = false }
 const tradeRecords = computed(() => [...(props.stock.tradeRecords ?? [])].sort((left, right) => {
@@ -538,10 +584,9 @@ const submitTrade = () => {
             <tr v-for="entry in stock.buyEntries" :key="entry.id">
               <td><span class="entry-readonly">{{ formatPrice(entry.buyPrice) }}</span></td>
               <td>
-                <div class="inline-field">
-                  <input v-model.number="entry.targetRate" type="number" step="0.5" />
-                  <span>%</span>
-                </div>
+                <button class="rate-change-btn" type="button" title="查看操作指南并修改涨幅" :aria-label="`查看操作指南并修改涨幅，当前 ${entry.targetRate}%`" @click="openRate(entry)">
+                  {{ entry.targetRate }}%
+                </button>
               </td>
               <td
                 class="accent-text sell-text"
@@ -711,6 +756,18 @@ const submitTrade = () => {
       />
     </section>
 
+    <section class="table-section info-section operation-guide-section">
+      <div class="section-head">
+        <h2>操作指南</h2>
+      </div>
+      <textarea
+        v-model="stock.operationGuide"
+        class="info-textarea"
+        rows="3"
+        placeholder="输入这只股票的操作指南"
+      />
+    </section>
+
     <section class="table-section dip-section exit-alert-section">
       <div class="section-head">
         <h2>绝对止损提醒</h2>
@@ -816,6 +873,47 @@ const submitTrade = () => {
       </button>
     </footer>
   </article>
+
+  <div v-if="rateEntry && pendingRate === null" class="settings-modal-overlay" @click.self="closeRate">
+    <section class="settings-modal trade-modal rate-modal" role="dialog" aria-modal="true" aria-labelledby="rate-modal-title">
+      <header class="settings-modal-head">
+        <div>
+          <h2 id="rate-modal-title">三思而行</h2>
+        </div>
+        <button class="ghost-btn" type="button" @click="closeRate">关闭</button>
+      </header>
+
+      <div class="rate-guide">
+        <p>{{ stock.operationGuide || '暂无操作指南' }}</p>
+      </div>
+
+      <label class="settings-field">
+        <span>新涨幅</span>
+        <div class="trade-input-group">
+          <input v-model="rateDraft" class="settings-input" type="number" step="any" inputmode="decimal" @keydown.enter="confirmRate" />
+          <span>%</span>
+        </div>
+      </label>
+
+      <p v-if="rateError" class="trade-error" role="alert">{{ rateError }}</p>
+      <div class="settings-modal-actions">
+        <button class="ghost-btn" type="button" @click="closeRate">取消</button>
+        <button class="primary-btn" type="button" @click="confirmRate">确认</button>
+      </div>
+    </section>
+  </div>
+
+  <div v-if="rateEntry && pendingRate !== null" class="settings-modal-overlay" @click.self="pendingRate = null">
+    <section class="settings-modal trade-modal" role="alertdialog" aria-modal="true" aria-labelledby="rate-risk-title">
+      <header class="settings-modal-head">
+        <h2 id="rate-risk-title">是否已经充分思考并意识到风险？</h2>
+      </header>
+      <div class="settings-modal-actions">
+        <button class="ghost-btn" type="button" @click="pendingRate = null">取消</button>
+        <button class="primary-btn" type="button" @click="applyRate">确认</button>
+      </div>
+    </section>
+  </div>
 
   <div v-if="tradeModal" class="settings-modal-overlay" @click.self="closeTradeModal">
     <section class="settings-modal trade-modal" role="dialog" aria-modal="true" aria-labelledby="trade-modal-title">
