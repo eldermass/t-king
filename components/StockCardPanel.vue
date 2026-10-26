@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CSSProperties } from 'vue'
 import { stockBoardKey, type BuyEntry, type StockCard, type TradeRecord } from '~/composables/useStockBoard'
+import { tradeGroupFee } from '~/shared/trade-fee'
 import { emptyStockScore, scoreForSelections, stockScoreRules, type ScoreDimension, type StockScore } from '~/shared/stock-score'
 
 type TradeRecordGroup = {
@@ -305,17 +306,7 @@ const tradeRecordGroupProfit = (group: TradeRecordGroup) => {
   return profits.reduce((total, value) => total + (value ?? 0), 0)
 }
 const formatTradeFee = (value: number | null) => value === null ? '--' : value.toFixed(2)
-const tradeRecordGroupFee = (group: TradeRecordGroup) => {
-  const sells = [group.opening, ...group.operations].filter((record) => record.type === 'sell')
-  if (!sells.length) return null
-
-  return sells.reduce((total, record) => {
-    const sellAmount = record.price * record.lots * 100
-    const commission = sellAmount > 10000 ? sellAmount * 1.5 / 10000 : 5
-    const fee = commission * 2 + sellAmount * 5 / 10000
-    return total + Math.round(fee * 100) / 100
-  }, 0)
-}
+const tradeRecordGroupFee = (group: TradeRecordGroup) => tradeGroupFee([group.opening, ...group.operations])
 const tradeRecordTotalProfit = computed(() => {
   const profits = tradeRecordGroups.value.map((group) => tradeRecordGroupProfit(group)).filter((value): value is number => value !== null)
   return profits.length ? profits.reduce((total, value) => total + value, 0) : null

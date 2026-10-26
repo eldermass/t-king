@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { stockBoardKey, type StockCard, type TradeRecord } from '~/composables/useStockBoard'
 import { emptyStockScore, scoreForSelections, stockScoreRules, type ScoreDimension, type StockScore } from '~/shared/stock-score'
+import { tradeGroupFee } from '~/shared/trade-fee'
 
 const stockBoard = useStockBoard()
 const session = useState<{ authenticated: boolean; user?: { id: string; username: string } } | null>('auth-session', () => null)
@@ -95,11 +96,20 @@ const groupProfit = (stock: StockCard, group: TradeGroup) => {
   return values.reduce((total, value) => total + (value ?? 0), 0)
 }
 
-const totalProfit = computed(() => {
-  if (!selectedStock.value) return null
-  const values = tradeGroups(selectedStock.value).map((group) => groupProfit(selectedStock.value as StockCard, group)).filter((value): value is number => value !== null)
+const groupFee = (group: TradeGroup) => tradeGroupFee([group.opening, ...group.operations])
+const totalProfit = (stock: StockCard) => {
+  const values = tradeGroups(stock).map((group) => groupProfit(stock, group)).filter((value): value is number => value !== null)
   return values.length ? values.reduce((total, value) => total + value, 0) : null
-})
+}
+const totalFee = (stock: StockCard) => {
+  const values = tradeGroups(stock).map(groupFee).filter((value): value is number => value !== null)
+  return values.length ? values.reduce((total, value) => total + value, 0) : null
+}
+const netProfit = (stock: StockCard) => {
+  const profit = totalProfit(stock)
+  return profit === null ? null : profit - (totalFee(stock) ?? 0)
+}
+const formatMoney = (value: number | null) => value === null ? '--' : value.toFixed(2)
 
 const profitTone = (value: number | null) => value === null || Math.abs(value) < 0.005 ? 'is-flat' : value > 0 ? 'is-profit' : 'is-loss'
 const setScoreSelection = (dimension: ScoreDimension, key: string, value: string) => { scoreSelections(dimension)[key] = value }
@@ -159,6 +169,7 @@ const logout = async () => {
           <span class="archive-stock-name">{{ stock.name || stock.code || '未命名股票' }}</span>
           <span class="archive-stock-code">{{ stock.code || '--' }}</span>
           <span class="archive-stock-score">{{ recordCount(stock) }} 条交易记录</span>
+          <span class="archive-stock-net-profit" :class="profitTone(netProfit(stock))">净盈亏 {{ formatMoney(netProfit(stock)) }}</span>
           <div class="archive-stock-actions" @click.stop>
             <button class="icon-btn archive-delete-btn" type="button" aria-label="删除归档股票" @click="removeArchivedStock(stock.id)">删</button>
           </div>
@@ -190,19 +201,24 @@ const logout = async () => {
       <header class="settings-modal-head"><div><h2 id="archive-records-title">交易记录</h2><p>{{ selectedStock?.name || selectedStock?.code || '当前股票' }}</p></div><button class="ghost-btn" type="button" @click="closeRecords">关闭</button></header>
       <div class="table-wrap trade-records-table-wrap">
         <table class="trade-records-table trade-records-grouped-table">
-          <thead><tr><th>日期</th><th>开仓</th><th>后续操作</th><th>累计盈亏</th></tr></thead>
+          <thead><tr><th>日期</th><th>开仓</th><th>后续操作</th><th>累计盈亏</th><th>交易费用</th></tr></thead>
           <tbody>
-            <tr v-if="!selectedStock || !tradeGroups(selectedStock).length"><td colspan="4">暂无交易记录</td></tr>
+            <tr v-if="!selectedStock || !tradeGroups(selectedStock).length"><td colspan="5">暂无交易记录</td></tr>
             <tr v-for="group in selectedStock ? tradeGroups(selectedStock) : []" :key="group.id">
               <td>{{ group.opening.tradeDate }}</td>
               <td><span class="trade-record-type" :class="group.opening.type === 'buy' ? 'is-buy' : 'is-sell'">{{ group.opening.type === 'buy' ? '买入' : '卖出' }}</span><span class="trade-record-detail">{{ formatPrice(group.opening.price) }} × {{ group.opening.lots }}手</span></td>
               <td><div v-if="group.operations.length" class="trade-record-operations"><span v-for="operation in group.operations" :key="operation.id" class="trade-record-operation"><span class="trade-record-type" :class="operation.type === 'buy' ? 'is-buy' : 'is-sell'">{{ operation.type === 'buy' ? '买入' : '卖出' }}</span><span class="trade-record-detail">{{ formatPrice(operation.price) }} × {{ operation.lots }}手</span><strong :class="['trade-record-profit', profitTone(tradeRecordProfit(selectedStock as StockCard, operation))]">{{ formatAmount(tradeRecordProfit(selectedStock as StockCard, operation)) }}</strong></span></div><span v-else class="trade-record-empty">--</span></td>
               <td :class="['trade-record-profit', profitTone(groupProfit(selectedStock as StockCard, group))]">{{ formatAmount(groupProfit(selectedStock as StockCard, group)) }}</td>
+              <td>{{ formatMoney(groupFee(group)) }}</td>
             </tr>
           </tbody>
-          <tfoot><tr><th colspan="3">总盈亏</th><th :class="['trade-record-profit', profitTone(totalProfit)]">{{ formatAmount(totalProfit) }}</th></tr></tfoot>
         </table>
       </div>
+      <footer v-if="selectedStock" class="trade-records-summary" aria-label="交易记录汇总">
+        <span>总盈亏 <strong :class="['trade-record-profit', profitTone(totalProfit(selectedStock))]">{{ formatMoney(totalProfit(selectedStock)) }}</strong></span>
+        <span>总交易费用 <strong>{{ formatMoney(totalFee(selectedStock)) }}</strong></span>
+        <span>净盈亏 <strong :class="['trade-record-profit', profitTone(netProfit(selectedStock))]">{{ formatMoney(netProfit(selectedStock)) }}</strong></span>
+      </footer>
     </section>
   </div>
 </template>

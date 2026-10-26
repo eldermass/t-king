@@ -470,6 +470,10 @@ input {
 .archive-stock-score .is-high { color:var(--accent); }
 .archive-stock-score .is-low { color:var(--accent-2); }
 .archive-stock-score .is-neutral { color:var(--muted); }
+.archive-stock-net-profit { min-width:0; font-size:.82rem; font-weight:800; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.archive-stock-net-profit.is-profit { color:var(--accent); }
+.archive-stock-net-profit.is-loss { color:var(--accent-2); }
+.archive-stock-net-profit.is-flat { color:var(--muted); }
 .archive-empty { margin:0; padding:28px 0 12px; color:var(--muted); text-align:center; font-size:.85rem; }
 .archive-stock-actions { position:absolute; top:12px; right:12px; display:flex; flex-direction:column; align-items:flex-end; gap:5px; margin:0; }
 .archive-buy-btn { min-height:28px; padding:5px 9px; }
