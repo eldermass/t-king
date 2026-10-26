@@ -461,6 +461,12 @@ input {
 .archive-stock-card { position:relative; display:grid; gap:7px; min-height:112px; padding:16px 64px 16px 16px; border:1px solid var(--line); border-radius:10px; background:rgba(255,250,240,.7); color:var(--text); text-align:left; cursor:pointer; font:inherit; transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
 .archive-stock-card:hover, .archive-stock-card:focus-visible { border-color:rgba(198,79,52,.4); box-shadow:0 10px 22px rgba(71,43,18,.1); outline:0; transform:translateY(-2px); }
 .archive-stock-card-closed { background:rgba(31,111,98,.05); }
+.archive-stock-name-row { display:flex; min-width:0; align-items:baseline; }
+.archive-stock-name-row .archive-stock-name { flex:0 1 auto; min-width:0; }
+.archive-stock-change { flex:none; font-size:.72rem; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.archive-stock-change.is-up { color:var(--accent); }
+.archive-stock-change.is-down { color:var(--accent-2); }
+.archive-stock-change.is-flat { color:var(--muted); }
 .archive-stock-name { overflow:hidden; font-size:1rem; font-weight:800; text-overflow:ellipsis; white-space:nowrap; }
 .archive-stock-code, .archive-stock-score { color:var(--muted); font-size:.76rem; }
 .archive-stock-input { width:100%; min-width:0; padding:0; border:0; background:transparent; color:inherit; outline:0; }

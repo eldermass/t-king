@@ -793,7 +793,7 @@ export const useStockBoard = () => {
   }
 
   const syncStockProfile = (stock: StockCard, profile: StockProfile) => {
-    if (profile.name && shouldAutofillStockName(stock)) {
+    if (profile.name && (preselectedStocks.value.some((item) => item.id === stock.id) || shouldAutofillStockName(stock))) {
       stock.name = profile.name
     }
 
@@ -813,7 +813,7 @@ export const useStockBoard = () => {
     for (const stock of [...stocks.value, ...preselectedStocks.value]) {
       const code = normalizeCode(stock.code)
 
-      if (!code || !shouldAutofillStockName(stock)) {
+      if (!code || (!preselectedStocks.value.some((item) => item.id === stock.id) && !shouldAutofillStockName(stock))) {
         continue
       }
 

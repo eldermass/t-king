@@ -15,7 +15,10 @@ const {
   removeArchivedStock,
   movePreselectedToBoard,
   formatPrice,
-  formatAmount
+  formatAmount,
+  formatPercent,
+  quoteFor,
+  quoteTone
 } = stockBoard
 const scoreOpen = ref(false)
 const recordsOpen = ref(false)
@@ -149,8 +152,11 @@ const logout = async () => {
       <header class="archive-section-head"><div><span class="archive-section-kicker">WATCHLIST</span><h2>预选票</h2></div><div class="archive-section-head-actions"><span>{{ preselectedStocks.length }} 只</span><button class="primary-btn" type="button" @click="addPreselectedStock">+ 新增预选</button></div></header>
       <div v-if="preselectedStocks.length" class="archive-card-grid">
         <article v-for="stock in preselectedStocks" :key="stock.id" class="archive-stock-card" role="button" tabindex="0" @click="openScore(stock)" @keydown.enter="openScore(stock)">
-          <input v-model="stock.name" class="archive-stock-input archive-stock-name" type="text" aria-label="预选股票名称" @click.stop />
-          <input v-model="stock.code" class="archive-stock-input archive-stock-code" type="text" inputmode="numeric" maxlength="6" placeholder="股票代码" aria-label="预选股票代码" @click.stop />
+          <div class="archive-stock-name-row">
+            <span class="archive-stock-name">{{ stock.name || (stock.code ? '查询中' : '未命名股票') }}</span>
+            <small v-if="quoteFor(stock.code).changePercent !== null" class="archive-stock-change" :class="quoteTone(stock.code)">{{ formatPercent(quoteFor(stock.code).changePercent) }}</small>
+          </div>
+          <input v-model="stock.code" class="archive-stock-input archive-stock-code" type="text" inputmode="numeric" maxlength="6" placeholder="股票代码" aria-label="预选股票代码" @input="stock.name = ''" @click.stop />
           <span class="archive-stock-score"><i :class="scoreTone(displayedScore(stock, 'quality'))">质 {{ displayedScore(stock, 'quality') ?? '--' }}</i><i :class="scoreTone(displayedScore(stock, 'form'))">形 {{ displayedScore(stock, 'form') ?? '--' }}</i></span>
           <div class="archive-stock-actions" @click.stop>
             <button class="mini-btn archive-buy-btn" type="button" @click="buyPreselected(stock)">买入</button>
