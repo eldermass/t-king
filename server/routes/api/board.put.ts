@@ -17,6 +17,18 @@ export default defineEventHandler(async (event) => {
       payload.notifications.activeReminders = nextPushKey === currentPushKey
         ? existingPayload.notifications.activeReminders
         : {}
+      const nextGuide = payload.notifications.marketGuide
+      const currentGuide = existingPayload.notifications.marketGuide
+      if (!Object.prototype.hasOwnProperty.call(body?.notifications ?? {}, 'marketGuide')) {
+        payload.notifications.marketGuide = {
+          ...currentGuide,
+          lastSentSlot: nextPushKey === currentPushKey ? currentGuide.lastSentSlot : null
+        }
+      } else {
+        nextGuide.lastSentSlot = nextPushKey === currentPushKey && nextGuide.text === currentGuide.text && nextGuide.intervalMinutes === currentGuide.intervalMinutes
+          ? currentGuide.lastSentSlot
+          : null
+      }
     } catch {
       payload.notifications.activeReminders = {}
     }

@@ -203,6 +203,8 @@ onMounted(() => {
       </div>
     </section>
 
+    <div class="h5-market-heading"><MarketScoreButton /><MarketGuideButton /></div>
+
     <section class="h5-ticker-row" aria-label="股票行情导航">
       <button
         v-for="(stock, index) in stocks"

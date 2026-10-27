@@ -1,5 +1,6 @@
 import type { BuyEntry, DipAlert, StockCard, AlertState, NotificationSettings, ActiveReminder, ReminderKind, TradeRecord } from '~/composables/useStockBoard'
 import { emptyStockScore } from '~/shared/stock-score'
+import { defaultMarketGuide, normalizeMarketGuide } from '~/shared/market-guide'
 
 export type BoardPayload = {
   stocks: StockCard[]
@@ -155,6 +156,7 @@ export const defaultBoardPayload = (): BoardPayload => ({
     enabled: true,
     pushDeerKey: '',
     noticeText: '',
+    marketGuide: defaultMarketGuide(),
     activeReminders: {}
   }
 })
@@ -351,6 +353,7 @@ export const normalizeBoardPayload = (input: unknown): BoardPayload => {
     enabled: typeof (rawNotifications as any)?.enabled === 'boolean' ? (rawNotifications as any).enabled : true,
     pushDeerKey: typeof (rawNotifications as any)?.pushDeerKey === 'string' ? (rawNotifications as any).pushDeerKey : '',
     noticeText: typeof (rawNotifications as any)?.noticeText === 'string' ? (rawNotifications as any).noticeText : '',
+    marketGuide: normalizeMarketGuide((rawNotifications as any)?.marketGuide),
     activeReminders: {}
   }
 

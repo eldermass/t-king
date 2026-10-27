@@ -24,6 +24,7 @@ export type DipAlert = {
 }
 
 import type { StockScore } from '~/shared/stock-score'
+import type { MarketGuide } from '~/shared/market-guide'
 
 export type StockCard = {
   id: string
@@ -102,6 +103,7 @@ export type NotificationSettings = {
   enabled: boolean
   pushDeerKey: string
   noticeText: string
+  marketGuide: MarketGuide
   activeReminders: Record<string, ActiveReminder>
 }
 

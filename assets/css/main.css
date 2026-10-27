@@ -73,6 +73,18 @@ input {
   line-height: 1.1;
 }
 
+.market-heading,
+.h5-market-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.h5-market-heading {
+  margin-bottom: 10px;
+  font-size: 1rem;
+}
+
 .topbar-actions {
   display: flex;
   align-items: center;

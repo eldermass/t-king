@@ -5,6 +5,7 @@ import {
   plannedSellPrice,
   referencePrice
 } from '../shared/reminder-core'
+import { marketGuideSlot, normalizeMarketGuide, type MarketGuide } from '../shared/market-guide'
 
 type BuyEntry = {
   id: string
@@ -62,6 +63,7 @@ type NotificationSettings = {
   enabled: boolean
   pushDeerKey: string
   noticeText: string
+  marketGuide: MarketGuide
   activeReminders: Record<string, ActiveReminder>
 }
 
@@ -250,6 +252,7 @@ const normalizeNotifications = (input: any): NotificationSettings => {
     enabled: typeof input?.enabled === 'boolean' ? input.enabled : true,
     pushDeerKey: typeof input?.pushDeerKey === 'string' ? input.pushDeerKey : '',
     noticeText: typeof input?.noticeText === 'string' ? input.noticeText : '',
+    marketGuide: normalizeMarketGuide(input?.marketGuide),
     activeReminders
   }
 }
@@ -490,6 +493,7 @@ const reconcileNotifications = (payload: BoardPayload, quotes: Record<string, Qu
     enabled: current.enabled,
     pushDeerKey: current.pushDeerKey,
     noticeText: current.noticeText,
+    marketGuide: current.marketGuide,
     activeReminders: {}
   }
   const pushDeerKey = current.pushDeerKey.trim()
@@ -554,6 +558,26 @@ const sendPushDeerMessage = async (pushKey: string, title: string, body: string)
 
   if (json.code !== 0) {
     throw new Error(`PushDeer send failed: ${json.error ?? `code ${json.code}`}`)
+  }
+}
+
+const sendMarketGuide = async (env: Env, row: BoardRow, payload: BoardPayload, now: Date) => {
+  const guide = payload.notifications?.marketGuide
+  const pushDeerKey = payload.notifications?.pushDeerKey.trim()
+  const slot = guide && marketGuideSlot(now, guide.intervalMinutes)
+  if (!pushDeerKey || !guide?.text || !slot || guide.lastSentSlot === slot) return false
+
+  try {
+    await sendPushDeerMessage(pushDeerKey, '市场指南', guide.text)
+    guide.lastSentSlot = slot
+    await env.DB
+      .prepare('UPDATE boards SET payload = json_set(payload, ?, ?), updated_at = ? WHERE user_id = ?')
+      .bind('$.notifications.marketGuide.lastSentSlot', slot, now.toISOString(), row.user_id)
+      .run()
+    return true
+  } catch (error) {
+    console.log(`pushdeer market guide send failed for ${row.user_id}`, error)
+    return false
   }
 }
 
@@ -875,6 +899,18 @@ const runNotifier = async (env: Env) => {
   }
 }
 
+const runMarketGuides = async (env: Env, scheduledAt: Date) => {
+  const result = await env.DB.prepare('SELECT user_id, payload, updated_at FROM boards').all<BoardRow>()
+  for (const row of result.results ?? []) {
+    try {
+      const payload = normalizePayload(JSON.parse(row.payload))
+      if (payload) await sendMarketGuide(env, row, payload, scheduledAt)
+    } catch (error) {
+      console.log(`market guide processing failed for ${row.user_id}`, error)
+    }
+  }
+}
+
 const runNotifierWithHeartbeat = async (env: Env, source: 'scheduled' | 'manual') => {
   const createdAt = new Date().toISOString()
 
@@ -958,7 +994,7 @@ export default {
 
     return new Response('t-king notifier ready')
   },
-  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(runNotifierWithHeartbeat(env, 'scheduled'))
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(runMarketGuides(env, new Date(controller.scheduledTime)))
   }
 }
