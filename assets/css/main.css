@@ -511,9 +511,13 @@ input {
 .stock-rank-chart { display:block; max-width:none; font-family:inherit; }
 .stock-rank-grid { stroke:rgba(135,101,42,.2); stroke-width:1; }
 .stock-rank-bar { fill:var(--accent-2); }
+.stock-rank-bar.is-first-quartile { fill:var(--accent); }
+.stock-rank-bar.is-second-quartile { fill:#df8f7d; }
+.stock-rank-bar.is-third-quartile { fill:#78aa98; }
+.stock-rank-bar.is-fourth-quartile { fill:var(--accent-2); }
 .stock-rank-tick { fill:var(--muted); font-size:11px; }
 .stock-rank-date { fill:var(--muted); font-size:10px; }
-.stock-rank-value { fill:var(--text); font-size:11px; font-weight:700; }
+.stock-rank-value { fill:var(--text); font-size:11px; font-weight:700; font-variant-numeric:tabular-nums; }
 .stock-rank-axis-title { fill:var(--muted); font-size:12px; font-weight:700; }
 .stock-indicator-trigger { flex:0 0 auto; }
 .stock-indicator-modal { width:min(100%, 980px); max-height:min(90vh, 760px); overflow:auto; }

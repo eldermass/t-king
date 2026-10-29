@@ -44,8 +44,25 @@ const bars = computed(() => points.value.map((point, index) => {
   const slotWidth = plotWidth.value / points.value.length
   const center = chartLeft + slotWidth * (index + 0.5)
   const height = point.rank === null || !maxStocks.value ? 0 : point.rank / maxStocks.value * plotHeight
+  const rankRatio = point.rank === null || !point.totalStocks ? null : point.rank / point.totalStocks
+  const rankLabel = point.rank === null ? '—' : `第${point.rank}名`
+  const rearRankLabel = point.rank !== null && rankRatio !== null && rankRatio > 0.75
+    ? `后${point.totalStocks - point.rank + 1}名`
+    : ''
+  const quartileClass = rankRatio === null
+    ? ''
+    : rankRatio <= 0.25
+      ? 'is-first-quartile'
+      : rankRatio <= 0.5
+        ? 'is-second-quartile'
+        : rankRatio <= 0.75
+          ? 'is-third-quartile'
+          : 'is-fourth-quartile'
   return {
     ...point,
+    rankLabel,
+    rearRankLabel,
+    quartileClass,
     center,
     x: center - Math.min(28, slotWidth * 0.48) / 2,
     width: Math.min(28, slotWidth * 0.48),
@@ -154,9 +171,12 @@ const refreshQuotes = async () => {
                 <text class="stock-rank-tick" :x="chartLeft - 10" :y="tick.y + 4" text-anchor="end">{{ tick.value }}</text>
               </g>
               <g v-for="bar in bars" :key="bar.tradeDate">
-                <title>{{ bar.tradeDate }}：{{ bar.rank === null ? '无有效排名' : `第 ${bar.rank} / ${bar.totalStocks} 名，涨跌幅 ${bar.changePercent?.toFixed(2)}%` }}</title>
-                <rect v-if="bar.rank !== null" class="stock-rank-bar" :x="bar.x" :y="bar.y" :width="bar.width" :height="bar.height" rx="3" />
-                <text class="stock-rank-value" :x="bar.center" :y="bar.rank === null ? chartBottom - 9 : Math.max(40, bar.y - 8)" text-anchor="middle">{{ bar.rank === null ? '—' : `第${bar.rank}名` }}</text>
+                <title>{{ bar.tradeDate }}：{{ bar.rank === null ? '无有效排名' : `${bar.rankLabel}${bar.rearRankLabel ? ` ${bar.rearRankLabel}` : ''}（共${bar.totalStocks}名），涨跌幅 ${bar.changePercent?.toFixed(2)}%` }}</title>
+                <rect v-if="bar.rank !== null" class="stock-rank-bar" :class="bar.quartileClass" :x="bar.x" :y="bar.y" :width="bar.width" :height="bar.height" rx="3" />
+                <text class="stock-rank-value" :x="bar.center" :y="bar.rank === null ? chartBottom - 9 : Math.max(bar.rearRankLabel ? 27 : 40, bar.y - (bar.rearRankLabel ? 21 : 8))" text-anchor="middle">
+                  <tspan :x="bar.center">{{ bar.rankLabel }}</tspan>
+                  <tspan v-if="bar.rearRankLabel" :x="bar.center" dy="13">{{ bar.rearRankLabel }}</tspan>
+                </text>
                 <text class="stock-rank-date" :x="bar.center" :y="chartBottom + 24" text-anchor="middle">{{ bar.tradeDate }}</text>
               </g>
               <text class="stock-rank-axis-title" :x="chartWidth - chartRight" :y="chartHeight - 8" text-anchor="end">时间</text>
