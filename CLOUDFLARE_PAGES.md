@@ -60,9 +60,9 @@ Configure this secret on the worker:
 
 ### Trigger via cron-job.org
 
-Existing stock reminders use `cron-job.org` to call the manual endpoint. Keep its current schedule.
+Existing stock reminders use `cron-job.org` to call the manual endpoint. Keep its current schedule. The Worker skips all automatic stock reminders on Beijing weekends even if the endpoint is called.
 
-Market guide reminders use the Cloudflare Cron Triggers in `wrangler.wecom.toml`. They run on weekdays at Beijing time 09:30, 10:00, 10:30, 11:00, 13:00, 13:30, 14:00, and 14:30. The 60-minute setting sends only at 09:30, 10:30, 13:00, and 14:00. The guide requires a PushDeer Key in reminder settings.
+Market guide reminders use the Cloudflare Cron Triggers in `wrangler.wecom.toml`. The triggers run daily at Beijing time 09:30, 10:00, 10:30, 11:00, 13:00, 13:30, 14:00, and 14:30; the Worker sends guides only on Beijing weekdays. The 60-minute setting sends only at 09:30, 10:30, 13:00, and 14:00. The guide requires a PushDeer Key in reminder settings.
 
 - URL: `https://t-king-pushdeer-notifier-v.a285653184.workers.dev/__run`
 - Method: `GET`

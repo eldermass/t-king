@@ -6,6 +6,7 @@ import {
   referencePrice
 } from '../shared/reminder-core'
 import { marketGuideSlot, normalizeMarketGuide, type MarketGuide } from '../shared/market-guide'
+import { isBeijingWeekday, toBeijingDate } from '../shared/beijing-time'
 
 type BuyEntry = {
   id: string
@@ -275,13 +276,11 @@ const normalizePayload = (input: unknown): BoardPayload | null => {
 }
 
 const isTradingTime = (now = new Date()) => {
-  const weekday = now.getUTCDay()
-
-  if (weekday === 0 || weekday === 6) {
+  if (!isBeijingWeekday(now)) {
     return false
   }
 
-  const local = new Date(now.getTime() + 8 * 60 * 60 * 1000)
+  const local = toBeijingDate(now)
   const minutes = local.getUTCHours() * 60 + local.getUTCMinutes()
 
   const morning = minutes >= 9 * 60 + 30 && minutes <= 11 * 60 + 30
@@ -844,12 +843,13 @@ const logNotifierRun = async (
 }
 
 const runNotifier = async (env: Env) => {
+  const now = new Date()
   const result = await env.DB.prepare('SELECT user_id, payload, updated_at FROM boards').all<BoardRow>()
   const rows = result.results ?? []
 
-  if (!rows.length) {
+  if (!rows.length || !isBeijingWeekday(now)) {
     return {
-      boards: 0,
+      boards: rows.length,
       quotes: 0,
       quoteReady: 0,
       quoteMissing: 0,
@@ -869,7 +869,6 @@ const runNotifier = async (env: Env) => {
   })
 
   const quotes = await fetchQuotes(codes)
-  const now = new Date()
   let changedBoards = 0
   let activeReminderCount = 0
   let dueReminderCount = 0

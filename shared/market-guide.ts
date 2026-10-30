@@ -1,3 +1,5 @@
+import { isBeijingWeekday, toBeijingDate } from './beijing-time'
+
 export type MarketGuideInterval = 0 | 30 | 60
 
 export type MarketGuide = {
@@ -24,9 +26,9 @@ export const normalizeMarketGuide = (input: unknown): MarketGuide => {
 export const marketGuideSlot = (now: Date, intervalMinutes: MarketGuideInterval): string | null => {
   if (!intervalMinutes) return null
 
-  const local = new Date(now.getTime() + 8 * 60 * 60 * 1000)
-  const day = local.getUTCDay()
-  if (day === 0 || day === 6) return null
+  if (!isBeijingWeekday(now)) return null
+
+  const local = toBeijingDate(now)
 
   const hour = local.getUTCHours()
   const minute = local.getUTCMinutes()
