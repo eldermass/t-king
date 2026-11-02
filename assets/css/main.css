@@ -505,11 +505,17 @@ input {
 .stock-rank-refresh-message { margin:0 0 12px; color:var(--accent-2); font-size:.82rem; }
 .stock-rank-refresh-message.is-error { color:var(--accent); }
 .stock-rank-note { margin:0 0 14px; color:var(--muted); font-size:.82rem; line-height:1.5; }
+.stock-rank-section + .stock-rank-section { margin-top:24px; }
+.stock-rank-section h3 { margin:0 0 6px; font-size:1rem; }
+.stock-rank-section .stock-rank-note { margin-bottom:10px; }
 .stock-rank-state { padding:36px 16px; color:var(--muted); text-align:center; font-size:.9rem; }
 .stock-rank-state.is-error { color:var(--accent); }
 .stock-rank-chart-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:rgba(255,250,240,.68); }
 .stock-rank-chart { display:block; max-width:none; font-family:inherit; }
 .stock-rank-grid { stroke:rgba(135,101,42,.2); stroke-width:1; }
+.stock-rank-zero-axis { stroke:var(--text); stroke-width:1.5; }
+.stock-rank-difference-bar.is-positive { fill:var(--accent); }
+.stock-rank-difference-bar.is-negative { fill:var(--accent-2); }
 .stock-rank-bar { fill:var(--accent-2); }
 .stock-rank-bar.is-first-quartile { fill:var(--accent); }
 .stock-rank-bar.is-second-quartile { fill:#df8f7d; }
