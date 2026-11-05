@@ -819,6 +819,10 @@ input {
   overflow: auto;
 }
 
+.trade-records-modal .trade-records-table-wrap {
+  overflow: auto;
+}
+
 .stock-trade-records-modal {
   display: flex;
   flex-direction: column;
