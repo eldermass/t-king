@@ -28,14 +28,14 @@ const listOpen = ref(false)
 const listRefreshing = ref(false)
 const listError = ref('')
 const listMessage = ref('')
-type ListSortKey = 'name' | 'changePercent' | 'form' | 'quality' | 'averageRiseRank' | 'averageFallRankReverse' | 'marketDifferenceSum'
+type ListSortKey = 'name' | 'changePercent' | 'form' | 'quality' | 'averageRiseRank' | 'averageFallRank' | 'marketDifferenceSum'
 const listSortColumns: { key: ListSortKey; label: string }[] = [
   { key: 'name', label: '票名' },
   { key: 'changePercent', label: '今日涨跌幅' },
   { key: 'form', label: '形态分' },
   { key: 'quality', label: '质量分' },
   { key: 'averageRiseRank', label: '平均涨时次序' },
-  { key: 'averageFallRankReverse', label: '平均跌时次序（倒数）' },
+  { key: 'averageFallRank', label: '平均跌时次序' },
   { key: 'marketDifferenceSum', label: '与所属大盘涨跌差' }
 ]
 const listSortKey = ref<ListSortKey>('averageRiseRank')
@@ -255,9 +255,9 @@ const logout = async () => {
 
   <div v-if="listOpen" class="settings-modal-overlay" @click.self="listOpen = false">
     <section class="settings-modal archive-list-modal" role="dialog" aria-modal="true" aria-labelledby="archive-list-title" @keydown.esc="listOpen = false">
-      <header class="settings-modal-head archive-list-head"><div class="archive-list-head-main"><button class="ghost-btn" type="button" :disabled="listRefreshing" @click="refreshList">{{ listRefreshing ? '更新中...' : '更新' }}</button><div><h2 id="archive-list-title">预选票列表</h2><p>次序及大盘差值取最近 20 个已记录交易日；下跌次序从末位起算。</p></div></div><button class="ghost-btn" type="button" @click="listOpen = false">关闭</button></header>
+      <header class="settings-modal-head archive-list-head"><div class="archive-list-head-main"><button class="ghost-btn" type="button" :disabled="listRefreshing" @click="refreshList">{{ listRefreshing ? '更新中...' : '更新' }}</button><div><h2 id="archive-list-title">预选票列表</h2><p>次序及大盘差值取最近 20 个已记录交易日；上涨日和下跌日均按正向次序计算。</p></div></div><button class="ghost-btn" type="button" @click="listOpen = false">关闭</button></header>
       <p v-if="listError" class="archive-list-status is-error" role="alert">{{ listError }}</p><p v-else-if="listMessage" class="archive-list-status" role="status">{{ listMessage }}</p>
-      <div class="archive-list-table-wrap"><table class="archive-list-table"><thead><tr><th v-for="column in listSortColumns" :key="column.key" :aria-sort="listSortKey === column.key ? (listSortDirection === 'asc' ? 'ascending' : 'descending') : 'none'"><button class="archive-list-sort-button" type="button" :aria-label="`按${column.label}${listSortKey === column.key && listSortDirection === 'asc' ? '降序' : '升序'}排序`" @click="sortListBy(column.key)">{{ column.label }}<span class="archive-list-sort-indicator" aria-hidden="true">{{ listSortKey === column.key ? (listSortDirection === 'asc' ? '▲' : '▼') : '↕' }}</span></button></th><th>K线图</th></tr></thead><tbody><tr v-if="!preselectedStocks.length"><td colspan="8">暂无预选票</td></tr><tr v-for="stock in sortedPreselectedStocks" :key="stock.id"><td><strong>{{ stock.name || stock.code || '未命名股票' }}</strong><small>{{ normalizeCode(stock.code) || '--' }}</small></td><td :class="quoteTone(stock.code)">{{ formatPercent(quoteFor(stock.code).changePercent) }}</td><td>{{ displayedScore(stock, 'form') ?? '--' }}</td><td>{{ displayedScore(stock, 'quality') ?? '--' }}</td><td>{{ formatRank(summaryFor(stock)?.averageRiseRank) }}</td><td>{{ formatRank(summaryFor(stock)?.averageFallRankReverse) }}</td><td :class="differenceTone(stock)">{{ formatDifferenceSum(summaryFor(stock)?.marketDifferenceSum) }}</td><td><StockKlineButton :stock-code="stock.code" :stock-name="stock.name" /></td></tr></tbody></table></div>
+      <div class="archive-list-table-wrap"><table class="archive-list-table"><thead><tr><th v-for="column in listSortColumns" :key="column.key" :aria-sort="listSortKey === column.key ? (listSortDirection === 'asc' ? 'ascending' : 'descending') : 'none'"><button class="archive-list-sort-button" type="button" :aria-label="`按${column.label}${listSortKey === column.key && listSortDirection === 'asc' ? '降序' : '升序'}排序`" @click="sortListBy(column.key)">{{ column.label }}<span class="archive-list-sort-indicator" aria-hidden="true">{{ listSortKey === column.key ? (listSortDirection === 'asc' ? '▲' : '▼') : '↕' }}</span></button></th><th>K线图</th></tr></thead><tbody><tr v-if="!preselectedStocks.length"><td colspan="8">暂无预选票</td></tr><tr v-for="stock in sortedPreselectedStocks" :key="stock.id"><td><strong>{{ stock.name || stock.code || '未命名股票' }}</strong><small>{{ normalizeCode(stock.code) || '--' }}</small></td><td :class="quoteTone(stock.code)">{{ formatPercent(quoteFor(stock.code).changePercent) }}</td><td>{{ displayedScore(stock, 'form') ?? '--' }}</td><td>{{ displayedScore(stock, 'quality') ?? '--' }}</td><td>{{ formatRank(summaryFor(stock)?.averageRiseRank) }}</td><td>{{ formatRank(summaryFor(stock)?.averageFallRank) }}</td><td :class="differenceTone(stock)">{{ formatDifferenceSum(summaryFor(stock)?.marketDifferenceSum) }}</td><td><StockKlineButton :stock-code="stock.code" :stock-name="stock.name" /></td></tr></tbody></table></div>
     </section>
   </div>
 

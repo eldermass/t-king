@@ -221,7 +221,7 @@ const normalizePreselectedSummary = (value: unknown): PreselectedSummary | null 
   return {
     code: summary.code,
     averageRiseRank: numberOrNull(summary.averageRiseRank),
-    averageFallRankReverse: numberOrNull(summary.averageFallRankReverse),
+    averageFallRank: numberOrNull(summary.averageFallRank),
     marketDifferenceSum: numberOrNull(summary.marketDifferenceSum),
     updatedAt: summary.updatedAt
   }
