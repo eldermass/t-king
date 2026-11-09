@@ -497,6 +497,26 @@ input {
 .archive-buy-btn { min-height:28px; padding:5px 9px; }
 .archive-delete-btn { min-width:28px; min-height:28px; padding:4px 7px; }
 .archive-score-modal { width:min(100%, 680px); }
+.archive-list-modal { width:min(100%, 1200px); max-height:min(84vh, 760px); display:flex; flex-direction:column; }
+.archive-list-head { align-items:center; }
+.archive-list-head-main { display:flex; align-items:center; gap:16px; }
+.archive-list-table-wrap { overflow:auto; min-height:0; border:1px solid var(--line); border-radius:10px; }
+.archive-list-table { width:100%; min-width:960px; border-collapse:collapse; font-size:.82rem; font-variant-numeric:tabular-nums; }
+.archive-list-table th, .archive-list-table td { padding:11px 12px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; }
+.archive-list-table th { position:sticky; top:0; z-index:1; background:#fffaf0; color:var(--muted); font-weight:800; }
+.archive-list-sort-button { display:inline-flex; align-items:center; gap:5px; padding:0; border:0; background:transparent; color:inherit; cursor:pointer; font:inherit; font-weight:inherit; white-space:nowrap; }
+.archive-list-sort-button:hover, .archive-list-sort-button:focus-visible { color:var(--accent); outline:none; }
+.archive-list-sort-button:focus-visible { text-decoration:underline; text-underline-offset:3px; }
+.archive-list-sort-indicator { color:var(--accent); font-size:.7rem; }
+.archive-list-table tbody tr:last-child td { border-bottom:0; }
+.archive-list-table td:first-child small { display:block; margin-top:3px; color:var(--muted); }
+.archive-list-table .is-up { color:var(--accent); }
+.archive-list-table .is-down { color:var(--accent-2); }
+.archive-list-status { margin:-4px 0 12px; color:var(--accent-2); font-size:.82rem; }
+.archive-list-status.is-error { color:#b52f29; }
+.stock-kline-overlay { z-index:100; }
+.market-chart-window.stock-kline-window { position:relative; inset:auto; width:min(100%, 760px); min-height:0; max-height:calc(100vh - 40px); overflow:auto; }
+@media (max-width:640px) { .archive-list-modal { padding:14px; } .archive-list-head { align-items:flex-start; } .archive-list-head-main { align-items:flex-start; flex-direction:column; gap:8px; } .archive-section-head-actions { flex-wrap:wrap; } }
 .stock-rank-trigger { flex:0 0 auto; }
 .stock-rank-modal { width:min(100%, 980px); max-height:min(88vh, 760px); overflow:auto; }
 .stock-rank-modal .settings-modal-head { flex-wrap:wrap; }

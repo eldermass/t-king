@@ -1,6 +1,7 @@
 import type { BuyEntry, DipAlert, StockCard, AlertState, NotificationSettings, ActiveReminder, ReminderKind, TradeRecord } from '~/composables/useStockBoard'
 import { emptyStockScore } from '~/shared/stock-score'
 import { defaultMarketGuide, normalizeMarketGuide } from '~/shared/market-guide'
+import type { PreselectedSummary } from '~/shared/preselected-summary'
 
 export type BoardPayload = {
   stocks: StockCard[]
@@ -212,6 +213,20 @@ const normalizeActiveReminder = (input: any): ActiveReminder | null => {
   }
 }
 
+const normalizePreselectedSummary = (value: unknown): PreselectedSummary | null => {
+  if (!value || typeof value !== 'object') return null
+  const summary = value as Record<string, unknown>
+  if (typeof summary.code !== 'string' || !/^\d{6}$/.test(summary.code) || typeof summary.updatedAt !== 'string') return null
+  const numberOrNull = (item: unknown) => typeof item === 'number' && Number.isFinite(item) ? item : null
+  return {
+    code: summary.code,
+    averageRiseRank: numberOrNull(summary.averageRiseRank),
+    averageFallRankReverse: numberOrNull(summary.averageFallRankReverse),
+    marketDifferenceSum: numberOrNull(summary.marketDifferenceSum),
+    updatedAt: summary.updatedAt
+  }
+}
+
 const normalizeStandaloneStock = (stock: any): StockCard => ({
   id: typeof stock?.id === 'string' ? stock.id : createId(),
   name: typeof stock?.name === 'string' ? stock.name : UNNAMED_STOCK_NAME,
@@ -250,7 +265,8 @@ const normalizeStandaloneStock = (stock: any): StockCard => ({
         reason: typeof alert.reason === 'string' ? alert.reason : ''
       }))
     : defaultDipAlerts(),
-  score: normalizeStockScore(stock?.score)
+  score: normalizeStockScore(stock?.score),
+  preselectedSummary: normalizePreselectedSummary(stock?.preselectedSummary)
 })
 
 export const normalizeBoardPayload = (input: unknown): BoardPayload => {

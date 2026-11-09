@@ -25,6 +25,7 @@ export type DipAlert = {
 
 import type { StockScore } from '~/shared/stock-score'
 import type { MarketGuide } from '~/shared/market-guide'
+import type { PreselectedSummary } from '~/shared/preselected-summary'
 
 export type StockCard = {
   id: string
@@ -48,6 +49,7 @@ export type StockCard = {
   tradeRecords: TradeRecord[]
   dipAlerts: DipAlert[]
   score?: StockScore
+  preselectedSummary?: PreselectedSummary | null
 }
 
 export type QuoteState = {
@@ -1131,6 +1133,15 @@ export const useStockBoard = () => {
     }, 300)
   }
 
+  const saveBoardNow = async () => {
+    if (saveTimer) {
+      clearTimeout(saveTimer)
+      saveTimer = null
+    }
+    await persistBoard()
+    return saveStatus.value === 'saved'
+  }
+
   const refreshQuotes = async () => {
     const codes = [...new Set(
       [...stocks.value, ...preselectedStocks.value]
@@ -1670,6 +1681,7 @@ export const useStockBoard = () => {
     boardLoading,
     boardReady,
     saveStatus,
+    saveBoardNow,
     loadBoard,
     formatPrice,
     formatSellPrice,

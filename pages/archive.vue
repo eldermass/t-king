@@ -2,6 +2,8 @@
 import { stockBoardKey, type StockCard, type TradeRecord } from '~/composables/useStockBoard'
 import { emptyStockScore, scoreForSelections, stockScoreRules, type ScoreDimension, type StockScore } from '~/shared/stock-score'
 import { tradeGroupFee } from '~/shared/trade-fee'
+import { normalizeCode } from '~/shared/reminder-core'
+import type { PreselectedSummary } from '~/shared/preselected-summary'
 
 const stockBoard = useStockBoard()
 const session = useState<{ authenticated: boolean; user?: { id: string; username: string } } | null>('auth-session', () => null)
@@ -22,6 +24,27 @@ const {
 } = stockBoard
 const scoreOpen = ref(false)
 const recordsOpen = ref(false)
+const listOpen = ref(false)
+const listRefreshing = ref(false)
+const listError = ref('')
+const listMessage = ref('')
+type ListSortKey = 'name' | 'changePercent' | 'form' | 'quality' | 'averageRiseRank' | 'averageFallRankReverse' | 'marketDifferenceSum'
+const listSortColumns: { key: ListSortKey; label: string }[] = [
+  { key: 'name', label: '票名' },
+  { key: 'changePercent', label: '今日涨跌幅' },
+  { key: 'form', label: '形态分' },
+  { key: 'quality', label: '质量分' },
+  { key: 'averageRiseRank', label: '平均涨时次序' },
+  { key: 'averageFallRankReverse', label: '平均跌时次序（倒数）' },
+  { key: 'marketDifferenceSum', label: '与所属大盘涨跌差' }
+]
+const listSortKey = ref<ListSortKey>('averageRiseRank')
+const listSortDirection = ref<'asc' | 'desc'>('asc')
+const openList = () => { listSortKey.value = 'averageRiseRank'; listSortDirection.value = 'asc'; listOpen.value = true }
+const sortListBy = (key: ListSortKey) => {
+  if (listSortKey.value === key) listSortDirection.value = listSortDirection.value === 'asc' ? 'desc' : 'asc'
+  else { listSortKey.value = key; listSortDirection.value = 'asc' }
+}
 const selectedStock = ref<StockCard | null>(null)
 const scoreDraft = ref<StockScore>(emptyStockScore())
 const scoreDimensions: ScoreDimension[] = ['quality', 'form']
@@ -31,6 +54,51 @@ const scoreValue = (dimension: ScoreDimension) => scoreForSelections(dimension, 
 const displayedScore = (stock: StockCard, dimension: ScoreDimension) => stock.score?.[dimension] ?? null
 const recordCount = (stock: StockCard) => Array.isArray(stock.tradeRecords) ? stock.tradeRecords.length : 0
 const scoreTone = (value: number | null) => value === null ? 'is-neutral' : value >= 40 ? 'is-high' : value <= 20 ? 'is-low' : 'is-neutral'
+const summaryFor = (stock: StockCard) => stock.preselectedSummary?.code === normalizeCode(stock.code) ? stock.preselectedSummary : null
+const formatRank = (value: number | null | undefined) => value === null || value === undefined ? '--' : String(Math.round(value))
+const formatDifferenceSum = (value: number | null | undefined) => value === null || value === undefined ? '--' : `${value > 0 ? '+' : ''}${value.toFixed(2)} %`
+const differenceTone = (stock: StockCard) => {
+  const value = summaryFor(stock)?.marketDifferenceSum
+  return value === null || value === undefined ? '' : value > 0 ? 'is-up' : value < 0 ? 'is-down' : ''
+}
+const listSortValue = (stock: StockCard, key: ListSortKey): string | number | null => {
+  if (key === 'name') return stock.name || normalizeCode(stock.code) || '未命名股票'
+  if (key === 'changePercent') return quoteFor(stock.code).changePercent
+  if (key === 'form' || key === 'quality') return displayedScore(stock, key)
+  const value = summaryFor(stock)?.[key] ?? null
+  return value === null ? null : key === 'marketDifferenceSum' ? value : Math.round(value)
+}
+const sortedPreselectedStocks = computed(() => preselectedStocks.value.map((stock, index) => ({ stock, index })).sort((left, right) => {
+  const leftValue = listSortValue(left.stock, listSortKey.value)
+  const rightValue = listSortValue(right.stock, listSortKey.value)
+  if (leftValue === null) return rightValue === null ? left.index - right.index : 1
+  if (rightValue === null) return -1
+  const comparison = typeof leftValue === 'string' && typeof rightValue === 'string'
+    ? leftValue.localeCompare(rightValue, 'zh-CN')
+    : Number(leftValue) - Number(rightValue)
+  return comparison ? (listSortDirection.value === 'asc' ? comparison : -comparison) : left.index - right.index
+}).map(({ stock }) => stock))
+const refreshList = async () => {
+  if (listRefreshing.value) return
+  const codes = [...new Set(preselectedStocks.value.map((stock) => normalizeCode(stock.code)).filter((code) => /^\d{6}$/.test(code)))]
+  if (!codes.length) { listMessage.value = '请先填写有效的 6 位股票代码'; return }
+  listRefreshing.value = true
+  listError.value = ''
+  listMessage.value = ''
+  try {
+    const result = await $fetch<{ summaries: PreselectedSummary[] }>('/api/market/preselected-summary', { method: 'POST', body: { codes } })
+    const summaries = new Map(result.summaries.map((summary) => [summary.code, summary]))
+    for (const stock of preselectedStocks.value) {
+      const summary = summaries.get(normalizeCode(stock.code))
+      if (summary) stock.preselectedSummary = summary
+    }
+    await nextTick()
+    if (!await stockBoard.saveBoardNow()) throw new Error('预选票数据已计算，但保存失败，请重试更新')
+    listMessage.value = `已更新并保存 ${summaries.size} 只预选票的近 20 日数据`
+  } catch (cause: any) {
+    listError.value = cause?.data?.statusMessage || cause?.statusMessage || cause?.message || '预选票数据更新失败'
+  } finally { listRefreshing.value = false }
+}
 
 const openScore = (stock: StockCard) => {
   selectedStock.value = stock
@@ -149,7 +217,7 @@ const logout = async () => {
     </section>
 
     <section class="archive-section">
-      <header class="archive-section-head"><div><span class="archive-section-kicker">WATCHLIST</span><h2>预选票</h2></div><div class="archive-section-head-actions"><span>{{ preselectedStocks.length }} 只</span><button class="primary-btn" type="button" @click="addPreselectedStock">+ 新增预选</button></div></header>
+      <header class="archive-section-head"><div><span class="archive-section-kicker">WATCHLIST</span><h2>预选票</h2></div><div class="archive-section-head-actions"><span>{{ preselectedStocks.length }} 只</span><button class="ghost-btn" type="button" @click="openList">列表</button><button class="primary-btn" type="button" @click="addPreselectedStock">+ 新增预选</button></div></header>
       <div v-if="preselectedStocks.length" class="archive-card-grid">
         <article v-for="stock in preselectedStocks" :key="stock.id" class="archive-stock-card" role="button" tabindex="0" @click="openScore(stock)" @keydown.enter="openScore(stock)">
           <div class="archive-stock-name-row">
@@ -184,6 +252,14 @@ const logout = async () => {
       <p v-else class="archive-empty">暂无归档股票</p>
     </section>
   </main>
+
+  <div v-if="listOpen" class="settings-modal-overlay" @click.self="listOpen = false">
+    <section class="settings-modal archive-list-modal" role="dialog" aria-modal="true" aria-labelledby="archive-list-title" @keydown.esc="listOpen = false">
+      <header class="settings-modal-head archive-list-head"><div class="archive-list-head-main"><button class="ghost-btn" type="button" :disabled="listRefreshing" @click="refreshList">{{ listRefreshing ? '更新中...' : '更新' }}</button><div><h2 id="archive-list-title">预选票列表</h2><p>次序及大盘差值取最近 20 个已记录交易日；下跌次序从末位起算。</p></div></div><button class="ghost-btn" type="button" @click="listOpen = false">关闭</button></header>
+      <p v-if="listError" class="archive-list-status is-error" role="alert">{{ listError }}</p><p v-else-if="listMessage" class="archive-list-status" role="status">{{ listMessage }}</p>
+      <div class="archive-list-table-wrap"><table class="archive-list-table"><thead><tr><th v-for="column in listSortColumns" :key="column.key" :aria-sort="listSortKey === column.key ? (listSortDirection === 'asc' ? 'ascending' : 'descending') : 'none'"><button class="archive-list-sort-button" type="button" :aria-label="`按${column.label}${listSortKey === column.key && listSortDirection === 'asc' ? '降序' : '升序'}排序`" @click="sortListBy(column.key)">{{ column.label }}<span class="archive-list-sort-indicator" aria-hidden="true">{{ listSortKey === column.key ? (listSortDirection === 'asc' ? '▲' : '▼') : '↕' }}</span></button></th><th>K线图</th></tr></thead><tbody><tr v-if="!preselectedStocks.length"><td colspan="8">暂无预选票</td></tr><tr v-for="stock in sortedPreselectedStocks" :key="stock.id"><td><strong>{{ stock.name || stock.code || '未命名股票' }}</strong><small>{{ normalizeCode(stock.code) || '--' }}</small></td><td :class="quoteTone(stock.code)">{{ formatPercent(quoteFor(stock.code).changePercent) }}</td><td>{{ displayedScore(stock, 'form') ?? '--' }}</td><td>{{ displayedScore(stock, 'quality') ?? '--' }}</td><td>{{ formatRank(summaryFor(stock)?.averageRiseRank) }}</td><td>{{ formatRank(summaryFor(stock)?.averageFallRankReverse) }}</td><td :class="differenceTone(stock)">{{ formatDifferenceSum(summaryFor(stock)?.marketDifferenceSum) }}</td><td><StockKlineButton :stock-code="stock.code" :stock-name="stock.name" /></td></tr></tbody></table></div>
+    </section>
+  </div>
 
   <div v-if="scoreOpen" class="settings-modal-overlay" @click.self="closeScore">
     <section class="settings-modal score-modal archive-score-modal" role="dialog" aria-modal="true" aria-labelledby="archive-score-title">
